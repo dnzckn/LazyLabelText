@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Linting
+.ruff_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+
+# Project data
+*.db
+*.parquet
+
+# Model files
+*.pth
+*.pt
+*.bin
+*.onnx
+
+# Logs
+*.log
+logs/
+
+# Claude
+.claude/
+CLAUDE.md
