@@ -37,37 +37,35 @@ class AzureEmbeddingProvider:
         self.use_env_credentials = use_env_credentials
         self._client = None
 
+    _ENV_KEY_VARS = ("AZURE_OPENAI_API_KEY", "OPENAI_API_KEY")
+    _ENV_ENDPOINT_VARS = ("AZURE_OPENAI_ENDPOINT", "OPENAI_API_BASE")
+    _ENV_VERSION_VARS = ("OPENAI_API_VERSION", "AZURE_OPENAI_API_VERSION")
+
     def _resolve_credentials(self) -> tuple[str, str, str]:
-        """Mirror AzureLangChainProvider's resolution: explicit fields first,
-        env vars as fallback. Avoids depending on langchain-openai's version-
-        specific env-var handling.
-        """
+        """Same env-var fallback chain as AzureLangChainProvider."""
         import os
 
+        def _first_env(names: tuple[str, ...]) -> str:
+            for name in names:
+                v = os.environ.get(name)
+                if v:
+                    return v.strip()
+            return ""
+
         if self.use_env_credentials:
-            endpoint = self.azure_endpoint or os.environ.get(
-                "AZURE_OPENAI_ENDPOINT", ""
-            )
-            api_key = self.api_key or os.environ.get("AZURE_OPENAI_API_KEY", "")
-            api_version = self.api_version or os.environ.get(
-                "OPENAI_API_VERSION", ""
-            )
+            endpoint = self.azure_endpoint or _first_env(self._ENV_ENDPOINT_VARS)
+            api_key = self.api_key or _first_env(self._ENV_KEY_VARS)
+            api_version = self.api_version or _first_env(self._ENV_VERSION_VARS)
         else:
             endpoint = self.azure_endpoint or ""
             api_key = self.api_key or ""
             api_version = self.api_version
 
-        missing = []
-        if not endpoint:
-            missing.append("AZURE_OPENAI_ENDPOINT")
-        if not api_key:
-            missing.append("AZURE_OPENAI_API_KEY")
         if not api_version:
-            missing.append("API version")
-        if missing:
             raise EmbeddingProviderError(
                 "azure-embeddings",
-                "Azure credentials missing: " + "; ".join(missing),
+                "Azure API version missing — set 'API version' in Provider Settings "
+                "or export OPENAI_API_VERSION.",
             )
         return endpoint, api_key, api_version
 
@@ -107,10 +105,12 @@ class AzureEmbeddingProvider:
         kwargs: dict = {
             "openai_api_version": api_version,
             "azure_deployment": self.model_name,
-            "azure_endpoint": endpoint,
-            "api_key": api_key,
             "http_client": httpx_client,
         }
+        if endpoint:
+            kwargs["azure_endpoint"] = endpoint
+        if api_key:
+            kwargs["api_key"] = api_key
 
         try:
             self._client = AzureOpenAIEmbeddings(**kwargs)

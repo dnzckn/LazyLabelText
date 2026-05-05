@@ -45,40 +45,45 @@ class AzureLangChainProvider:
         self.use_env_credentials = use_env_credentials
         self._llm = None
 
-    def _resolve_credentials(self) -> tuple[str, str, str]:
-        """Resolve (endpoint, api_key, api_version) using explicit fields first
-        and env vars as fallback. Raises if a required value is missing.
+    # Env-var fallback chain matches what langchain-openai itself looks for,
+    # so the env-mode toggle behaves the same as the bare AzureChatOpenAI()
+    # constructor people use in standalone scripts.
+    _ENV_KEY_VARS = ("AZURE_OPENAI_API_KEY", "OPENAI_API_KEY")
+    _ENV_ENDPOINT_VARS = ("AZURE_OPENAI_ENDPOINT", "OPENAI_API_BASE")
+    _ENV_VERSION_VARS = ("OPENAI_API_VERSION", "AZURE_OPENAI_API_VERSION")
 
-        Doing this in our code rather than relying on langchain_openai's
-        validate_environment hook means env-mode works the same across all
-        langchain versions, and missing env vars produce a clear error.
+    def _resolve_credentials(self) -> tuple[str, str, str]:
+        """Resolve (endpoint, api_key, api_version) — explicit fields first,
+        then env vars (multiple common names), then empty.
+
+        Empty values are NOT an error here: when use_env_credentials is on,
+        we'd rather hand the empty values to AzureChatOpenAI and let its own
+        validators raise a clear pydantic error than reject upfront. Only
+        api_version is enforced because it's not consistently env-resolved.
         """
         import os
 
+        def _first_env(names: tuple[str, ...]) -> str:
+            for name in names:
+                v = os.environ.get(name)
+                if v:
+                    return v.strip()
+            return ""
+
         if self.use_env_credentials:
-            endpoint = self.azure_endpoint or os.environ.get(
-                "AZURE_OPENAI_ENDPOINT", ""
-            )
-            api_key = self.api_key or os.environ.get("AZURE_OPENAI_API_KEY", "")
-            api_version = self.api_version or os.environ.get(
-                "OPENAI_API_VERSION", ""
-            )
+            endpoint = self.azure_endpoint or _first_env(self._ENV_ENDPOINT_VARS)
+            api_key = self.api_key or _first_env(self._ENV_KEY_VARS)
+            api_version = self.api_version or _first_env(self._ENV_VERSION_VARS)
         else:
             endpoint = self.azure_endpoint or ""
             api_key = self.api_key or ""
             api_version = self.api_version
 
-        missing = []
-        if not endpoint:
-            missing.append("AZURE_OPENAI_ENDPOINT (or set Azure endpoint in settings)")
-        if not api_key:
-            missing.append("AZURE_OPENAI_API_KEY (or paste the key in settings)")
         if not api_version:
-            missing.append("API version (set in settings)")
-        if missing:
             raise LLMProviderError(
                 "azure",
-                "Azure credentials missing: " + "; ".join(missing),
+                "Azure API version missing — set 'API version' in Provider Settings "
+                "or export OPENAI_API_VERSION.",
             )
         return endpoint, api_key, api_version
 
@@ -116,10 +121,15 @@ class AzureLangChainProvider:
         kwargs: dict = {
             "openai_api_version": api_version,
             "azure_deployment": self.model,
-            "azure_endpoint": endpoint,
-            "api_key": api_key,
             "http_client": httpx_client,
         }
+        # Only pass non-empty creds. Empty endpoint/key make langchain raise
+        # a confusing validation error; leaving them unset lets langchain do
+        # its own env-var fallback as a last resort.
+        if endpoint:
+            kwargs["azure_endpoint"] = endpoint
+        if api_key:
+            kwargs["api_key"] = api_key
 
         try:
             self._llm = AzureChatOpenAI(**kwargs)
