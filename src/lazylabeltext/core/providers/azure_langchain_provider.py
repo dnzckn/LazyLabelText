@@ -45,6 +45,43 @@ class AzureLangChainProvider:
         self.use_env_credentials = use_env_credentials
         self._llm = None
 
+    def _resolve_credentials(self) -> tuple[str, str, str]:
+        """Resolve (endpoint, api_key, api_version) using explicit fields first
+        and env vars as fallback. Raises if a required value is missing.
+
+        Doing this in our code rather than relying on langchain_openai's
+        validate_environment hook means env-mode works the same across all
+        langchain versions, and missing env vars produce a clear error.
+        """
+        import os
+
+        if self.use_env_credentials:
+            endpoint = self.azure_endpoint or os.environ.get(
+                "AZURE_OPENAI_ENDPOINT", ""
+            )
+            api_key = self.api_key or os.environ.get("AZURE_OPENAI_API_KEY", "")
+            api_version = self.api_version or os.environ.get(
+                "OPENAI_API_VERSION", ""
+            )
+        else:
+            endpoint = self.azure_endpoint or ""
+            api_key = self.api_key or ""
+            api_version = self.api_version
+
+        missing = []
+        if not endpoint:
+            missing.append("AZURE_OPENAI_ENDPOINT (or set Azure endpoint in settings)")
+        if not api_key:
+            missing.append("AZURE_OPENAI_API_KEY (or paste the key in settings)")
+        if not api_version:
+            missing.append("API version (set in settings)")
+        if missing:
+            raise LLMProviderError(
+                "azure",
+                "Azure credentials missing: " + "; ".join(missing),
+            )
+        return endpoint, api_key, api_version
+
     def _get_llm(self):
         if self._llm is not None:
             return self._llm
@@ -63,10 +100,11 @@ class AzureLangChainProvider:
                 "azure", "httpx not installed (pip install httpx)"
             ) from e
 
+        endpoint, api_key, api_version = self._resolve_credentials()
+
         try:
             httpx_client = httpx.Client(http2=self.http2, verify=self.verify_ssl)
         except Exception as e:
-            # http2=True requires the h2 package; fall back to http/1.1 if missing.
             if self.http2:
                 logger.warning(
                     "Falling back to HTTP/1.1 (h2 not available): %s", e
@@ -76,15 +114,12 @@ class AzureLangChainProvider:
                 raise LLMProviderError("azure", f"httpx.Client failed: {e}") from e
 
         kwargs: dict = {
-            "openai_api_version": self.api_version,
+            "openai_api_version": api_version,
             "azure_deployment": self.model,
+            "azure_endpoint": endpoint,
+            "api_key": api_key,
             "http_client": httpx_client,
         }
-        if not self.use_env_credentials:
-            if self.api_key:
-                kwargs["api_key"] = self.api_key
-            if self.azure_endpoint:
-                kwargs["azure_endpoint"] = self.azure_endpoint
 
         try:
             self._llm = AzureChatOpenAI(**kwargs)

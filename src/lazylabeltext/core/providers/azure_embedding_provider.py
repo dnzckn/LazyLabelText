@@ -37,6 +37,40 @@ class AzureEmbeddingProvider:
         self.use_env_credentials = use_env_credentials
         self._client = None
 
+    def _resolve_credentials(self) -> tuple[str, str, str]:
+        """Mirror AzureLangChainProvider's resolution: explicit fields first,
+        env vars as fallback. Avoids depending on langchain-openai's version-
+        specific env-var handling.
+        """
+        import os
+
+        if self.use_env_credentials:
+            endpoint = self.azure_endpoint or os.environ.get(
+                "AZURE_OPENAI_ENDPOINT", ""
+            )
+            api_key = self.api_key or os.environ.get("AZURE_OPENAI_API_KEY", "")
+            api_version = self.api_version or os.environ.get(
+                "OPENAI_API_VERSION", ""
+            )
+        else:
+            endpoint = self.azure_endpoint or ""
+            api_key = self.api_key or ""
+            api_version = self.api_version
+
+        missing = []
+        if not endpoint:
+            missing.append("AZURE_OPENAI_ENDPOINT")
+        if not api_key:
+            missing.append("AZURE_OPENAI_API_KEY")
+        if not api_version:
+            missing.append("API version")
+        if missing:
+            raise EmbeddingProviderError(
+                "azure-embeddings",
+                "Azure credentials missing: " + "; ".join(missing),
+            )
+        return endpoint, api_key, api_version
+
     def _get_client(self):
         if self._client is not None:
             return self._client
@@ -55,6 +89,8 @@ class AzureEmbeddingProvider:
                 "azure-embeddings", "httpx not installed"
             ) from e
 
+        endpoint, api_key, api_version = self._resolve_credentials()
+
         try:
             httpx_client = httpx.Client(http2=self.http2, verify=self.verify_ssl)
         except Exception as e:
@@ -69,15 +105,12 @@ class AzureEmbeddingProvider:
                 ) from e
 
         kwargs: dict = {
-            "openai_api_version": self.api_version,
+            "openai_api_version": api_version,
             "azure_deployment": self.model_name,
+            "azure_endpoint": endpoint,
+            "api_key": api_key,
             "http_client": httpx_client,
         }
-        if not self.use_env_credentials:
-            if self.api_key:
-                kwargs["api_key"] = self.api_key
-            if self.azure_endpoint:
-                kwargs["azure_endpoint"] = self.azure_endpoint
 
         try:
             self._client = AzureOpenAIEmbeddings(**kwargs)
