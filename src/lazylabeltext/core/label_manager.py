@@ -55,12 +55,40 @@ class LabelManager:
         except Exception as e:
             raise ClassificationError(chunk.id or 0, str(e)) from e
 
-        # Compute kNN agreement if embeddings available
-        knn_agreement = None
-        if self.embedding_provider is not None and rubric.categories:
+        # Compute and persist the chunk embedding once; reuse it for kNN below
+        # and store it on the chunk row for downstream RAG / export.
+        chunk_embedding = None
+        embedding_model_name = None
+        if self.embedding_provider is not None:
             try:
-                knn_agreement = self._compute_knn_agreement(
-                    chunk.text, result.categories, rubric
+                chunk_embedding = self.embedding_provider.encode_one(chunk.text)
+                embedding_model_name = getattr(
+                    self.embedding_provider, "model_name", "unknown"
+                )
+                if chunk.id is not None:
+                    self.db.set_chunk_embedding(
+                        chunk.id, chunk_embedding, embedding_model_name
+                    )
+                    chunk.embedding = (
+                        chunk_embedding.tolist()
+                        if hasattr(chunk_embedding, "tolist")
+                        else list(chunk_embedding)
+                    )
+                    chunk.embedding_model = embedding_model_name
+            except Exception:
+                logger.debug("Embedding compute/persist failed", exc_info=True)
+                chunk_embedding = None
+
+        # kNN agreement reuses the same embedding (no second API call).
+        knn_agreement = None
+        if (
+            self.embedding_provider is not None
+            and rubric.categories
+            and chunk_embedding is not None
+        ):
+            try:
+                knn_agreement = self._compute_knn_agreement_with_embedding(
+                    chunk_embedding, result.categories, rubric
                 )
             except Exception:
                 logger.debug("kNN agreement computation failed", exc_info=True)
@@ -243,20 +271,27 @@ class LabelManager:
     def _compute_knn_agreement(
         self, chunk_text: str, predicted: list[str], rubric: Rubric
     ) -> float:
-        """Compute agreement between LLM prediction and kNN from exemplars."""
+        """Compute kNN agreement starting from raw text (computes its own embedding)."""
+        if not self.embedding_provider:
+            return 0.0
+        chunk_emb = self.embedding_provider.encode_one(chunk_text)
+        return self._compute_knn_agreement_with_embedding(
+            chunk_emb, predicted, rubric
+        )
+
+    def _compute_knn_agreement_with_embedding(
+        self, chunk_emb, predicted: list[str], rubric: Rubric
+    ) -> float:
+        """kNN agreement when the chunk embedding is already computed."""
         if not self.embedding_provider:
             return 0.0
 
-        # Build or retrieve exemplar embeddings
         if self._exemplar_embeddings is None:
             self._build_exemplar_embeddings(rubric)
 
         if not self._exemplar_embeddings:
             return 0.0
 
-        chunk_emb = self.embedding_provider.encode_one(chunk_text)
-
-        # Find nearest exemplar category
         best_category = ""
         best_sim = -1.0
         for cat_name, emb in self._exemplar_embeddings.items():
@@ -268,7 +303,6 @@ class LabelManager:
                 best_sim = sim
                 best_category = cat_name
 
-        # Agreement: 1.0 if kNN agrees with prediction, 0.0 if not
         if best_category in predicted:
             return 1.0
         return 0.0

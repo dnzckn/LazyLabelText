@@ -100,6 +100,8 @@ class Chunk:
     chunk_type: str | None = None
     boundary_confidence: float | None = None
     manual_override: dict | None = None
+    embedding: list[float] | None = None
+    embedding_model: str | None = None
 
 
 @dataclass

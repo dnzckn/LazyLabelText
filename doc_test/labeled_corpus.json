@@ -1,0 +1,2745 @@
+{
+  "manifest": {
+    "rubric_version": 1,
+    "rubric_name": "Imported",
+    "total_chunks": 73,
+    "labeled_chunks": 73,
+    "reviewed_chunks": 49,
+    "export_timestamp": "2026-05-05T14:50:03.405213+00:00",
+    "tool_version": "0.1.11"
+  },
+  "rubric": {
+    "name": "Imported",
+    "version": 1,
+    "categories": [
+      {
+        "name": "regulation",
+        "definition": "A binding legal or regulatory requirement that constrains who may operate, where, when, or how. Typically uses obligation language (must, may not, no person may), cites a code section (e.g., § 107.x), and is enforceable by a regulatory body. Distinguish from safety_constraint (a configurable software/operational rule) and procedure (a sequence of actions).",
+        "exemplars": [
+          "The groundspeed of the small unmanned aircraft may not exceed 87 knots (100 miles per hour).",
+          "No person may operate a small unmanned aircraft over a human being unless that human being is directly participating in the operation of the small unmanned aircraft.",
+          "The minimum distance of the small unmanned aircraft from clouds must be no less than 500 feet below the cloud and 2,000 feet horizontally from the cloud.",
+          "After May 17, 2021, no person may operate a small unmanned aircraft system at night under a certificate of waiver issued prior to April 21, 2021 under § 107.200 of this part."
+        ]
+      },
+      {
+        "name": "definition",
+        "definition": "A terminological definition that introduces a term and gives its meaning. Often follows the form 'X means Y' or 'X: <definition>'. Single-clause and self-contained. Distinguish from principle (explanatory prose about how something works).",
+        "exemplars": [
+          "Control station: An interface used by the remote pilot to control the flight path of the small unmanned aircraft.",
+          "Small unmanned aircraft: An unmanned aircraft weighing less than 55 pounds on takeoff, including everything that is on board or otherwise attached to the aircraft.",
+          "Visual observer: A person who is designated by the remote pilot in command to assist the remote pilot in command and the person manipulating the flight controls of the small UAS to see and avoid other air traffic or objects aloft or on the ground.",
+          "A quadcopter is a type of helicopter or multicopter that has four rotors."
+        ]
+      },
+      {
+        "name": "specification",
+        "definition": "A quantitative or model-specific component fact: a part number, a numeric capability, a material, a sensor model, a battery capacity, a frequency band. Typically reads like a row in a bill of materials or a spec sheet. Distinguish from regulation (which constrains use rather than describing a product).",
+        "exemplars": [
+          "Battery: 5870 mAh",
+          "Camera: Sony Exmor 1/2.3\", 4K at 30 FPS",
+          "Transmission: Lightbridge (5 km range)",
+          "Propellers: Model 9450S",
+          "GNSS: Real-time kinematic module; compatible with GPS, GLONASS, Galileo, BeiDou"
+        ]
+      },
+      {
+        "name": "procedure",
+        "definition": "An imperative, ordered, or step-wise instruction that the reader is meant to perform: 'connect X to Y', 'mount the GPS', 'flash the firmware', 'calibrate the compass'. Action-oriented. Distinguish from regulation (an external constraint) and specification (a static fact).",
+        "exemplars": [
+          "Connect the GPS to the TELEM2 port on the flight controller.",
+          "Mount the flight controller on the frame using vibration-damping standoffs.",
+          "Power the system from a bench supply before connecting the battery for the first time.",
+          "Bind the receiver to the transmitter following the manufacturer's pairing sequence.",
+          "Calibrate the compass by rotating the airframe through each axis as prompted by the ground station."
+        ]
+      },
+      {
+        "name": "principle",
+        "definition": "Explanatory prose describing how or why something works: physical principles, design rationale, historical context, comparative analysis. Not a definition (no 'X means Y' form), not a step, not a constraint, not a part. Distinguish from definition (which names a term) by length and discursive style.",
+        "exemplars": [
+          "Quadcopters typically have two rotors spinning clockwise and two counterclockwise. Flight control works through independent speed variation of each rotor.",
+          "When all four rotors spin at equal angular velocity with opposing directions, the net torque cancels out. This eliminates the need for a tail rotor found on conventional helicopters.",
+          "The quadcopter configuration gained popularity with advances in electronics around 2005–2010.",
+          "The small size and low inertia of modern drones make them practical for flight control systems that would be impractical for larger aircraft."
+        ]
+      },
+      {
+        "name": "safety_constraint",
+        "definition": "A configurable failsafe, threshold, or automated protective response inside a software/operational system: battery thresholds, geofence limits, RC-loss responses, kill switches, flight termination. Typically tied to a specific autopilot or vehicle configuration rather than to a legal authority. Distinguish from regulation (external/legal) and procedure (manual action).",
+        "exemplars": [
+          "Failsafes allow you to specify areas and conditions under which you can safely fly, and the action that will be performed if a failsafe is triggered.",
+          "Battery Management: Three-tier system with warning, critical, and emergency thresholds triggering progressively severe responses.",
+          "Kill Switch: Stops motors instantly (reversible within timeout period).",
+          "Geofence: Breach of cylindrical perimeter triggers specified actions based on horizontal radius and altitude limits.",
+          "Data Link Loss: Engages when telemetry connection to ground control is severed."
+        ]
+      }
+    ]
+  },
+  "chunks": [
+    {
+      "id": 1,
+      "text": "# DJI Phantom Series — Specifications & Component Lists\n\nSource: https://en.wikipedia.org/wiki/DJI_Phantom\n\nPer-model component breakdown for the DJI Phantom quadcopter family. Functions as a bill-of-materials / spec reference across models.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists"
+        ],
+        "char_start": 0,
+        "char_end": 243
+      },
+      "token_count": 51,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk is a header/introduction to a specifications and component lists section for DJI Phantom quadcopters. It explicitly references 'Specifications & Component Lists' and describes itself as a 'bill-of-materials / spec reference,' which are characteristic attributes of specification content. The chunk introduces a structured inventory of components and technical details rather than imposing operational constraints (regulation), defining terms (definition), prescribing actions (procedure), explaining principles (principle), or configuring safety thresholds (safety_constraint).",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "correct",
+          "final_categories": [
+            "specification",
+            "principle"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:09:32"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "text": "## Overview\n\nThe DJI Phantom is a quadcopter UAV series developed by Chinese company DJI, starting with the original release in January 2013. Described as the first commercially successful recreational drone, it revolutionized consumer aerial photography through accessibility and user-friendly design.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Overview"
+        ],
+        "char_start": 243,
+        "char_end": 547
+      },
+      "token_count": 55,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "principle"
+        ],
+        "confidence": {
+          "principle": 0.92
+        },
+        "rationale": "This chunk is explanatory prose providing historical context and design rationale for the DJI Phantom series. It describes what the product is, when it was released, its market significance, and its design philosophy ('accessibility and user-friendly design'). It does not define a specific term in the 'X means Y' format, does not list technical specifications (parts, numbers, capabilities), does not impose regulatory requirements, does not give procedural steps, and does not describe configurable failsafes. The discursive style and focus on historical background and comparative significance ('first commercially successful', 'revolutionized') are characteristic of principle-based content.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "principle"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:09:49"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "text": "## Phantom 1 (2013)\n\n- Battery: 2200 mAh LiPo\n- Flight time: ~15 minutes\n- Control frequency: 2.4 GHz\n- Camera: Optional GoPro HERO mount\n- Autopilot: GPS-enabled NAZA-M system",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 1 (2013)"
+        ],
+        "char_start": 547,
+        "char_end": 725
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bill-of-materials style listing of quantitative and model-specific component facts about the DJI Phantom 1 drone. Each line presents a discrete technical specification: battery capacity (2200 mAh), flight duration (~15 minutes), control frequency (2.4 GHz), camera mount type, and autopilot model. These are static product traits describing what the device contains or can do, not operational constraints (regulation), user actions (procedure), legal obligations, definitions, or explanatory principles. The section header and list format further confirm this is a specification document.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:25"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "text": "## Phantom FC40\n\n- Control frequency: 5.8 GHz (allowing 2.4 GHz for FPV)\n- Camera: Built-in FC40, 720p at 30 FPS\n- Control: iOS/Android app via Wi-Fi",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom FC40"
+        ],
+        "char_start": 725,
+        "char_end": 876
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts about the DJI Phantom FC40: control frequency bands (5.8 GHz, 2.4 GHz), camera model with resolution and frame rate (FC40, 720p at 30 FPS), and control platform (iOS/Android app via Wi-Fi). These are all static product characteristics typical of a bill of materials or spec sheet. The section heading ('Specifications & Component Lists') and the format (bulleted list of technical attributes) further confirm this is specification content rather than regulation, procedure, or definition.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:25"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "text": "## Phantom 2 Vision (2013)\n\n- Battery: 5200 mAh\n- Flight time: ~25 minutes\n- Camera: Built-in, 1080p at 30/60 FPS, 14MP stills\n- Gimbal: One-axis, 60° vertical motion\n- Storage: MicroSD card\n\n## Phantom 2 Vision+ (2014)\n\n- Gimbal: Three-axis self-stabilizing, 90° vertical tilt\n- Flight time: ~25 minutes\n- Key feature: Camera can point straight down",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 2 Vision (2013)"
+        ],
+        "char_start": 876,
+        "char_end": 1228
+      },
+      "token_count": 113,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured list of quantitative and model-specific component facts for two DJI Phantom drone models. Each line reads like entries in a bill of materials or spec sheet: battery capacity (mAh), flight duration (minutes), camera resolution (1080p, 14MP), gimbal configuration (axes, degrees of motion), and storage type. These are product capabilities and hardware traits, not operational constraints (regulation), instructions (procedure), definitions, principles, or failsafes. The section header explicitly frames this as 'Specifications & Component Lists,' confirming the specification classification.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:26"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "text": "## Phantom 3 Professional (2015)\n\n- Battery: 4480 mAh\n- Flight time: ~23 minutes\n- Camera: Sony Exmor 1/2.3\", 4K at 30 FPS\n- Navigation: GPS + GLONASS\n- Transmission: Lightbridge (5 km range)\n- New feature: Visual positioning system (no-GPS hovering)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Professional (2015)"
+        ],
+        "char_start": 1228,
+        "char_end": 1480
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a product specification sheet listing quantitative and model-specific component facts: battery capacity (mAh), flight time (minutes), camera sensor and recording capability, navigation systems, transmission technology and range, and a hardware feature. Each line reads as a component fact or capability typical of a bill of materials or datasheet. There are no legal/regulatory constraints, definitions of terms, procedures, principles, or safety thresholds—only static product attributes.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:26"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "text": "## Phantom 3 Advanced (2015)\n\n- Camera: Sony Exmor 1/2.3\", 2.7K at 30 FPS (vs Pro's 4K)\n- Battery & flight time: Same as Professional\n- Transmission: Lightbridge",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Advanced (2015)"
+        ],
+        "char_start": 1480,
+        "char_end": 1643
+      },
+      "token_count": 54,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.95
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts about the Phantom 3 Advanced: camera sensor model and resolution/framerate capabilities, battery/flight-time reference, and transmission system name. These are typical bill-of-materials or spec-sheet entries describing product traits rather than legal constraints (regulation), operational procedures, or explanatory principles. The comparative note ('vs Pro's 4K') is marketing/descriptive context typical of specification sheets.",
+        "composite_confidence": 0.9974999999999999,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:09:50"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "text": "## Phantom 3 Standard (2015)\n\n- Transmission: Wi-Fi (vs Lightbridge on Pro/Advanced)\n- Camera: 2.7K and 1080p at 30 FPS; 720p at 60 FPS\n- Missing: Visual positioning system, GLONASS\n\n## Phantom 3 4K (2016)\n\n- Camera: 4K Sony Exmor (like Pro)\n- Transmission: Wi-Fi\n- Range: 1.2 km (480p live video)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Standard (2015)"
+        ],
+        "char_start": 1643,
+        "char_end": 1942
+      },
+      "token_count": 104,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component specification list for DJI Phantom drone models. It lists quantitative and model-specific facts: transmission type (Wi-Fi vs Lightbridge), camera capabilities (resolution and frame rate), sensor presence/absence (visual positioning system, GLONASS), and operational range. These are product traits and bill-of-materials entries rather than legal constraints (regulation), procedural steps (procedure), configurable failsafes (safety_constraint), or definitions of terms. The format is typical of a spec sheet or technical data sheet.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:27"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "text": "## Phantom 3 SE (2017)\n\n- Battery: 4480 mAh\n- Flight time: ~25 minutes\n- Video transmission: 720p live (upgraded from 4K's 480p)\n- Range: 4 km",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 SE (2017)"
+        ],
+        "char_start": 1942,
+        "char_end": 2086
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative product capabilities and component facts typical of a spec sheet or bill of materials: battery capacity (mAh), flight duration (minutes), video resolution and transmission capability (720p), and operational range (km). These are static, descriptive facts about the Phantom 3 SE model rather than regulatory constraints, procedures, definitions, safety thresholds, or explanatory principles. The format and content are characteristic of a specifications table.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:27"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "text": "## Phantom 4 (2016)\n\n- Battery: 5350 mAh\n- Flight time: ~28 minutes\n- Camera: 1/2.3\", 4K at 30 FPS; 1080p at 120 FPS\n- Electronic shutter: Yes\n- Obstacle avoidance: 4 cameras (2 forward, 2 downward) + ultrasonic\n- New features: ActiveTrack, TapFly\n- Propellers: Push-and-release locking mechanism",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 (2016)"
+        ],
+        "char_start": 2086,
+        "char_end": 2384
+      },
+      "token_count": 97,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured list of product specifications for the DJI Phantom 4 drone. Each item describes a quantitative or model-specific component fact: battery capacity (5350 mAh), flight time (~28 minutes), camera sensor size and video capabilities (1/2.3\", 4K at 30 FPS, etc.), sensor configuration (obstacle avoidance cameras and ultrasonic), and mechanical features (propeller locking mechanism). These read like rows in a bill of materials or spec sheet, not regulatory constraints, procedures, definitions, or explanatory principles. The format and content are purely descriptive of the product's technical traits.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:27"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "text": "## Phantom 4 Pro (2016)\n\n- Battery: 5870 mAh\n- Flight time: ~30 minutes\n- Camera: 20MP Sony Exmor R, 1\" CMOS sensor\n- Obstacle avoidance: Upgraded with rear-facing and infrared side sensors\n- Propellers: Model 9450S\n\n## Phantom 4 Pro+ (2016)\n\n- Identical to Pro except: Controller includes 5.5\" built-in screen and integrated flight app\n\n## Phantom 4 Advanced (2017)\n\n- Camera: 1\" CMOS with mechanical shutter\n- Video: 4K H.264 at 60 FPS; H.265 at 30 FPS",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro (2016)"
+        ],
+        "char_start": 2384,
+        "char_end": 2840
+      },
+      "token_count": 143,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bill-of-materials style listing of component facts and quantitative capabilities for three DJI Phantom drone models. It includes part numbers (9450S propellers), numeric specs (5870 mAh battery, 20MP camera, 30-minute flight time, 5.5\" screen), sensor models (Sony Exmor R 1\" CMOS), and video codec/frame-rate details. These are all characteristic of product specification documentation—static descriptive facts about hardware and performance rather than regulatory constraints, procedures, definitions, or safety rules. The format and content match the specification category precisely.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:27"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "text": "## Phantom 4 Pro V2.0 (2018)\n\n- Camera: 20MP 1\" Exmor R\n- Transmission: OcuSync\n- ESCs: Improved\n- Propellers: Model 9455S low-noise (backwards compatible)\n- Battery: 5870 mAh / ~30 minutes flight",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro V2.0 (2018)"
+        ],
+        "char_start": 2840,
+        "char_end": 3038
+      },
+      "token_count": 69,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component list from a product specification sheet for the DJI Phantom 4 Pro V2.0. It enumerates hardware components with model numbers, capacities, and capabilities (camera megapixels/sensor type, battery mAh and flight time, propeller model, transmission system). These are static product facts typical of a bill of materials or spec sheet, not operational constraints (regulation), instructions (procedure), or system rules (safety_constraint). The section header explicitly labels it as 'Specifications & Component Lists.'",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:27"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "text": "## Phantom 4 RTK (2018)\n\n- Purpose: Aerial mapping and surveying\n- Camera: FC6310R (Exmor R equivalent with glass lens)\n- GNSS: Real-time kinematic module; compatible with GPS, GLONASS, Galileo, BeiDou\n- Redundancy: Dual GNSS module\n- Recording: JPEG images, MOV video format",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 RTK (2018)"
+        ],
+        "char_start": 3038,
+        "char_end": 3315
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists component facts and capabilities of the Phantom 4 RTK aircraft: camera model (FC6310R), GNSS module types (GPS, GLONASS, Galileo, BeiDou), recording formats (JPEG, MOV), and structural features (dual GNSS redundancy). These are all quantitative/model-specific facts typical of a bill of materials or spec sheet. The chunk is descriptive rather than prescriptive—it describes what the product has, not what a user must or must not do, nor how to perform an action.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:27"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "text": "## P4 Multispectral (2019)\n\n- Purpose: Agricultural applications\n- Camera: Six-sensor array (RGB + 5 narrow-band)\n- Battery: 5870 mAh\n- Flight time: ~27 minutes\n- Propellers: Model 9455S standard",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "P4 Multispectral (2019)"
+        ],
+        "char_start": 3315,
+        "char_end": 3512
+      },
+      "token_count": 58,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component and capability list for a specific product model (DJI Phantom P4 Multispectral). It reads like a bill of materials or spec sheet, presenting quantitative facts about the aircraft: camera type/sensor count, battery capacity (mAh), flight duration, and propeller model. These are static product traits rather than operational constraints (regulation), procedures, definitions, principles, or safety failsafes. The format and content are purely descriptive of the product's specifications.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:28"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "text": "## Transmission Systems Evolution\n\n- Phantom 1–2: Wi-Fi or 2.4/5.8 GHz direct\n- Phantom 3 Pro/Advanced: Lightbridge (up to 5 km)\n- Phantom 4 Pro V2.0 onward: OcuSync",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Transmission Systems Evolution"
+        ],
+        "char_start": 3512,
+        "char_end": 3678
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk lists transmission system models and capabilities across different Phantom drone versions. Each bullet point follows the pattern of naming a product variant and its associated transmission technology/range capability. The content is factual, comparative, and reads like a specification sheet or bill of materials. It describes what each model includes rather than how to use it, what the law requires, or how to perform a task. The range value ('up to 5 km') is a product capability metric, not an operational limit constraint.",
+        "composite_confidence": 0.9660000000000001,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-04 22:11:24"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "text": "# DJI Phantom Series — Specifications & Component Lists\n\nSource: https://en.wikipedia.org/wiki/DJI_Phantom\n\nPer-model component breakdown for the DJI Phantom quadcopter family. Functions as a bill-of-materials / spec reference across models.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists"
+        ],
+        "char_start": 0,
+        "char_end": 243
+      },
+      "token_count": 51,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk is a header and introductory statement for a section that will contain component specifications and model-specific technical details. The explicit mention of 'Specifications & Component Lists', 'bill-of-materials / spec reference', and 'Per-model component breakdown' clearly indicates this is a specification document. It functions as metadata introducing quantitative and model-specific component facts rather than procedures, regulations, definitions, or explanatory principles.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 17,
+      "text": "## Overview\n\nThe DJI Phantom is a quadcopter UAV series developed by Chinese company DJI, starting with the original release in January 2013. Described as the first commercially successful recreational drone, it revolutionized consumer aerial photography through accessibility and user-friendly design.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Overview"
+        ],
+        "char_start": 243,
+        "char_end": 547
+      },
+      "token_count": 55,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "principle"
+        ],
+        "confidence": {
+          "principle": 0.92
+        },
+        "rationale": "This chunk is explanatory and historical prose that describes the DJI Phantom series, its origins, and its impact on consumer aerial photography. It provides context and background information rather than defining a term (no 'X means Y' form), imposing a constraint, describing technical specifications, or instructing the reader to perform an action. The content is discursive and informational, characteristic of principle-category material.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 18,
+      "text": "## Phantom 1 (2013)\n\n- Battery: 2200 mAh LiPo\n- Flight time: ~15 minutes\n- Control frequency: 2.4 GHz\n- Camera: Optional GoPro HERO mount\n- Autopilot: GPS-enabled NAZA-M system",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 1 (2013)"
+        ],
+        "char_start": 547,
+        "char_end": 725
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk presents a structured list of technical component facts and capabilities for the DJI Phantom 1 drone model. Each line (battery capacity, flight time, control frequency, camera mount, autopilot system) describes a quantitative or model-specific product attribute that would typically appear on a specification sheet or bill of materials. There are no regulatory constraints, definitions, procedures, principles, or safety thresholds present. This is purely descriptive product information.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 19,
+      "text": "## Phantom FC40\n\n- Control frequency: 5.8 GHz (allowing 2.4 GHz for FPV)\n- Camera: Built-in FC40, 720p at 30 FPS\n- Control: iOS/Android app via Wi-Fi",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom FC40"
+        ],
+        "char_start": 725,
+        "char_end": 876
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts about the Phantom FC40 drone: control frequency bands, camera model and capabilities (720p at 30 FPS), and control method. These are all static product traits typical of a specification sheet or bill of materials. The content describes what the product has, not what operators must or must not do (regulation), how to use it (procedure), or how it works (principle).",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 20,
+      "text": "## Phantom 2 Vision (2013)\n\n- Battery: 5200 mAh\n- Flight time: ~25 minutes\n- Camera: Built-in, 1080p at 30/60 FPS, 14MP stills\n- Gimbal: One-axis, 60° vertical motion\n- Storage: MicroSD card\n\n## Phantom 2 Vision+ (2014)\n\n- Gimbal: Three-axis self-stabilizing, 90° vertical tilt\n- Flight time: ~25 minutes\n- Key feature: Camera can point straight down",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 2 Vision (2013)"
+        ],
+        "char_start": 876,
+        "char_end": 1228
+      },
+      "token_count": 113,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bill-of-materials style listing of quantitative and model-specific component facts for two DJI drone models. It includes battery capacity (mAh), flight time (minutes), camera resolution (1080p, 14MP), gimbal configuration (axis count, tilt range), and storage type. These are all static product traits typical of a spec sheet, not operational constraints, legal requirements, procedures, or principles. The section header confirms this is a specifications document.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 21,
+      "text": "## Phantom 3 Professional (2015)\n\n- Battery: 4480 mAh\n- Flight time: ~23 minutes\n- Camera: Sony Exmor 1/2.3\", 4K at 30 FPS\n- Navigation: GPS + GLONASS\n- Transmission: Lightbridge (5 km range)\n- New feature: Visual positioning system (no-GPS hovering)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Professional (2015)"
+        ],
+        "char_start": 1228,
+        "char_end": 1480
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bill-of-materials style listing of quantitative and model-specific component facts for the Phantom 3 Professional: battery capacity (mAh), flight duration, camera sensor specs, navigation systems, transmission range, and feature callouts. Each line reads as a product capability or part descriptor rather than a legal constraint (regulation), a defined term (definition), an action to perform (procedure), explanatory prose (principle), or a failsafe configuration (safety_constraint). This is purely descriptive specification data.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 22,
+      "text": "## Phantom 3 Advanced (2015)\n\n- Camera: Sony Exmor 1/2.3\", 2.7K at 30 FPS (vs Pro's 4K)\n- Battery & flight time: Same as Professional\n- Transmission: Lightbridge",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Advanced (2015)"
+        ],
+        "char_start": 1480,
+        "char_end": 1643
+      },
+      "token_count": 54,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.95
+        },
+        "rationale": "This chunk lists quantitative component facts and product capabilities: camera sensor model and resolution, battery/flight-time equivalence, and transmission technology. These are static product traits characteristic of a bill of materials or spec sheet, not regulations, procedures, definitions, or principles. The format and content are purely descriptive of the Phantom 3 Advanced's hardware and performance attributes.",
+        "composite_confidence": 0.9974999999999999,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 23,
+      "text": "## Phantom 3 Standard (2015)\n\n- Transmission: Wi-Fi (vs Lightbridge on Pro/Advanced)\n- Camera: 2.7K and 1080p at 30 FPS; 720p at 60 FPS\n- Missing: Visual positioning system, GLONASS\n\n## Phantom 3 4K (2016)\n\n- Camera: 4K Sony Exmor (like Pro)\n- Transmission: Wi-Fi\n- Range: 1.2 km (480p live video)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Standard (2015)"
+        ],
+        "char_start": 1643,
+        "char_end": 1942
+      },
+      "token_count": 104,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured bill-of-materials / spec sheet listing quantitative product features and component facts for two DJI Phantom drone models: transmission type, camera resolution/frame rates, sensor presence/absence, and transmission range. Each line reads as a static product attribute rather than a configurable constraint, operational procedure, legal requirement, or explanatory principle. The format and content are characteristic of product specification documentation.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 24,
+      "text": "## Phantom 3 SE (2017)\n\n- Battery: 4480 mAh\n- Flight time: ~25 minutes\n- Video transmission: 720p live (upgraded from 4K's 480p)\n- Range: 4 km",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 SE (2017)"
+        ],
+        "char_start": 1942,
+        "char_end": 2086
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative component facts and capabilities of the DJI Phantom 3 SE drone: battery capacity (mAh), flight duration (minutes), video resolution and transmission capability, and operational range (km). These are model-specific technical specs typical of a bill of materials or product datasheet. The section header explicitly signals a 'Specifications & Component Lists' context. This is descriptive product information, not a legal regulation, not an operational constraint, not a procedure, and not explanatory prose about how the system works.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 25,
+      "text": "## Phantom 4 (2016)\n\n- Battery: 5350 mAh\n- Flight time: ~28 minutes\n- Camera: 1/2.3\", 4K at 30 FPS; 1080p at 120 FPS\n- Electronic shutter: Yes\n- Obstacle avoidance: 4 cameras (2 forward, 2 downward) + ultrasonic\n- New features: ActiveTrack, TapFly\n- Propellers: Push-and-release locking mechanism",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 (2016)"
+        ],
+        "char_start": 2086,
+        "char_end": 2384
+      },
+      "token_count": 97,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative component facts and product capabilities: battery capacity (mAh), flight time (minutes), camera sensor size and resolution (fps), obstacle avoidance sensor count and types, and propeller locking mechanism type. These are all static, model-specific facts typical of a bill of materials or specification sheet. The chunk does not impose operational constraints (regulation), define terminology (definition), prescribe actions (procedure), explain physical principles (principle), or configure failsafes (safety_constraint).",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 26,
+      "text": "## Phantom 4 Pro (2016)\n\n- Battery: 5870 mAh\n- Flight time: ~30 minutes\n- Camera: 20MP Sony Exmor R, 1\" CMOS sensor\n- Obstacle avoidance: Upgraded with rear-facing and infrared side sensors\n- Propellers: Model 9450S\n\n## Phantom 4 Pro+ (2016)\n\n- Identical to Pro except: Controller includes 5.5\" built-in screen and integrated flight app\n\n## Phantom 4 Advanced (2017)\n\n- Camera: 1\" CMOS with mechanical shutter\n- Video: 4K H.264 at 60 FPS; H.265 at 30 FPS",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro (2016)"
+        ],
+        "char_start": 2384,
+        "char_end": 2840
+      },
+      "token_count": 143,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured bill-of-materials / spec sheet listing quantitative and model-specific component facts: battery capacity (mAh), flight duration, camera sensor specs (megapixels, sensor size, type), propeller model numbers, screen size, and video codec/frame rate. These are all static descriptive facts about product capabilities and components, not operational constraints, legal requirements, procedural steps, or configurable system thresholds. The format and content are typical of a product specification document.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 27,
+      "text": "## Phantom 4 Pro V2.0 (2018)\n\n- Camera: 20MP 1\" Exmor R\n- Transmission: OcuSync\n- ESCs: Improved\n- Propellers: Model 9455S low-noise (backwards compatible)\n- Battery: 5870 mAh / ~30 minutes flight",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro V2.0 (2018)"
+        ],
+        "char_start": 2840,
+        "char_end": 3038
+      },
+      "token_count": 69,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component list for the Phantom 4 Pro V2.0 drone, presenting quantitative and model-specific facts: camera sensor specs (20MP, 1\" Exmor R), transmission system (OcuSync), propeller model (9455S), and battery capacity (5870 mAh with flight time estimate). These are characteristic product specifications typically found in a bill of materials or spec sheet. The format and content match the specification category definition precisely—factual, non-prescriptive product capabilities rather than operational constraints (regulation), procedures (instructions), definitions (term meanings), or principles (explanatory prose).",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 28,
+      "text": "## Phantom 4 RTK (2018)\n\n- Purpose: Aerial mapping and surveying\n- Camera: FC6310R (Exmor R equivalent with glass lens)\n- GNSS: Real-time kinematic module; compatible with GPS, GLONASS, Galileo, BeiDou\n- Redundancy: Dual GNSS module\n- Recording: JPEG images, MOV video format",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 RTK (2018)"
+        ],
+        "char_start": 3038,
+        "char_end": 3315
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.95
+        },
+        "rationale": "This chunk is a structured list of component facts and capabilities for the Phantom 4 RTK drone model. It includes model name, purpose (functional descriptor), specific camera model, GNSS module specifications, redundancy architecture, and recording formats. These are all quantitative or model-specific traits typical of a bill of materials or product spec sheet. It does not impose operational constraints (regulation), define a term (definition), instruct an action (procedure), explain underlying principles (principle), or describe a configurable failsafe (safety_constraint).",
+        "composite_confidence": 0.9974999999999999,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 29,
+      "text": "## P4 Multispectral (2019)\n\n- Purpose: Agricultural applications\n- Camera: Six-sensor array (RGB + 5 narrow-band)\n- Battery: 5870 mAh\n- Flight time: ~27 minutes\n- Propellers: Model 9455S standard",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "P4 Multispectral (2019)"
+        ],
+        "char_start": 3315,
+        "char_end": 3512
+      },
+      "token_count": 58,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured list of product component facts and capabilities for the DJI Phantom P4 Multispectral (2019). Each line presents quantitative or model-specific information typical of a bill of materials or spec sheet: battery capacity (5870 mAh), camera sensor array details, flight time (27 minutes), and propeller model number (9455S). There are no regulatory constraints, procedural instructions, definitions, principles, or safety thresholds—only static descriptive facts about the aircraft's specifications.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 30,
+      "text": "## Transmission Systems Evolution\n\n- Phantom 1–2: Wi-Fi or 2.4/5.8 GHz direct\n- Phantom 3 Pro/Advanced: Lightbridge (up to 5 km)\n- Phantom 4 Pro V2.0 onward: OcuSync",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Transmission Systems Evolution"
+        ],
+        "char_start": 3512,
+        "char_end": 3678
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk presents a chronological list of transmission system models and their corresponding frequency bands or protocol names (Wi-Fi, Lightbridge, OcuSync) across different Phantom drone generations. It reads as a bill-of-materials or spec-sheet comparison table, documenting product capabilities and component evolution rather than imposing operational constraints or defining terms. The numeric range ('up to 5 km') is a product capability metric, not a usage limit. No regulatory language, imperative instructions, or definitional form ('X means Y') is present.",
+        "composite_confidence": 0.9660000000000001,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 31,
+      "text": "# DJI Phantom Series — Specifications & Component Lists\n\nSource: https://en.wikipedia.org/wiki/DJI_Phantom\n\nPer-model component breakdown for the DJI Phantom quadcopter family. Functions as a bill-of-materials / spec reference across models.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists"
+        ],
+        "char_start": 0,
+        "char_end": 243
+      },
+      "token_count": 51,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk is a header and introductory statement for a specifications section. It explicitly identifies itself as a 'bill-of-materials / spec reference' and announces a 'per-model component breakdown,' which are hallmarks of specification content. The language indicates the section will contain quantitative component facts, part numbers, and model-specific details rather than regulatory constraints, definitions, procedures, or principles. While it is introductory/meta-level rather than listing specific specs itself, it clearly frames the context as specification-oriented content.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:34:11"
+        }
+      }
+    },
+    {
+      "id": 33,
+      "text": "## Phantom 1 (2013)\n\n- Battery: 2200 mAh LiPo\n- Flight time: ~15 minutes\n- Control frequency: 2.4 GHz\n- Camera: Optional GoPro HERO mount\n- Autopilot: GPS-enabled NAZA-M system",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 1 (2013)"
+        ],
+        "char_start": 547,
+        "char_end": 725
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk presents a product specification sheet for the DJI Phantom 1 (2013). It lists quantitative and model-specific component facts: battery capacity (2200 mAh LiPo), flight time (~15 minutes), control frequency (2.4 GHz), camera mounting capability, and autopilot system model (NAZA-M). These are static product traits and capabilities, not regulatory constraints, operational procedures, or safety thresholds. The format and content are typical of a bill of materials or specifications document.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "flag",
+          "final_categories": [],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:34:49"
+        }
+      }
+    },
+    {
+      "id": 34,
+      "text": "## Phantom FC40\n\n- Control frequency: 5.8 GHz (allowing 2.4 GHz for FPV)\n- Camera: Built-in FC40, 720p at 30 FPS\n- Control: iOS/Android app via Wi-Fi",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom FC40"
+        ],
+        "char_start": 725,
+        "char_end": 876
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts typical of a bill of materials or spec sheet: control frequency bands (5.8 GHz, 2.4 GHz), camera model and capability (FC40, 720p at 30 FPS), and control interface (iOS/Android app via Wi-Fi). These are static product traits describing what the Phantom FC40 includes, not legal constraints (regulation), operational procedures (procedure), or configurable system responses (safety_constraint). The format and content are characteristic of specifications.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "flag",
+          "final_categories": [],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:34:50"
+        }
+      }
+    },
+    {
+      "id": 35,
+      "text": "## Phantom 2 Vision (2013)\n\n- Battery: 5200 mAh\n- Flight time: ~25 minutes\n- Camera: Built-in, 1080p at 30/60 FPS, 14MP stills\n- Gimbal: One-axis, 60° vertical motion\n- Storage: MicroSD card\n\n## Phantom 2 Vision+ (2014)\n\n- Gimbal: Three-axis self-stabilizing, 90° vertical tilt\n- Flight time: ~25 minutes\n- Key feature: Camera can point straight down",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 2 Vision (2013)"
+        ],
+        "char_start": 876,
+        "char_end": 1228
+      },
+      "token_count": 113,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts for two DJI Phantom drone models, including battery capacity (mAh), flight duration (minutes), camera resolution and frame rates, gimbal specifications, and storage type. These are all characteristic rows from a bill of materials or spec sheet, describing product capabilities and hardware traits rather than constraints on use, regulatory obligations, procedures, definitions, or principles.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "flag",
+          "final_categories": [],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:34:50"
+        }
+      }
+    },
+    {
+      "id": 36,
+      "text": "## Phantom 3 Professional (2015)\n\n- Battery: 4480 mAh\n- Flight time: ~23 minutes\n- Camera: Sony Exmor 1/2.3\", 4K at 30 FPS\n- Navigation: GPS + GLONASS\n- Transmission: Lightbridge (5 km range)\n- New feature: Visual positioning system (no-GPS hovering)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Professional (2015)"
+        ],
+        "char_start": 1228,
+        "char_end": 1480
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts typical of a product specification sheet or bill of materials: battery capacity (mAh), flight time (minutes), camera sensor and resolution, navigation systems, transmission range, and hardware features. These are static descriptive facts about the Phantom 3 Professional's capabilities and components, not operational constraints (regulation/safety_constraint), procedures, definitions, or explanatory principles. The format and content are characteristic of a specifications section.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 37,
+      "text": "## Phantom 3 Advanced (2015)\n\n- Camera: Sony Exmor 1/2.3\", 2.7K at 30 FPS (vs Pro's 4K)\n- Battery & flight time: Same as Professional\n- Transmission: Lightbridge",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Advanced (2015)"
+        ],
+        "char_start": 1480,
+        "char_end": 1643
+      },
+      "token_count": 54,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts: camera sensor model and recording capability (Sony Exmor 1/2.3\", 2.7K at 30 FPS), transmission system (Lightbridge), and references battery/flight time parity with another model. These are static product traits typical of a bill of materials or spec sheet, not operational constraints (regulation/safety_constraint), procedures, definitions, or explanatory principles.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 38,
+      "text": "## Phantom 3 Standard (2015)\n\n- Transmission: Wi-Fi (vs Lightbridge on Pro/Advanced)\n- Camera: 2.7K and 1080p at 30 FPS; 720p at 60 FPS\n- Missing: Visual positioning system, GLONASS\n\n## Phantom 3 4K (2016)\n\n- Camera: 4K Sony Exmor (like Pro)\n- Transmission: Wi-Fi\n- Range: 1.2 km (480p live video)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Standard (2015)"
+        ],
+        "char_start": 1643,
+        "char_end": 1942
+      },
+      "token_count": 104,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured list of product specifications for two DJI Phantom drone models. It enumerates quantitative capabilities (camera resolution/frame rates, transmission type, range) and component facts (camera sensor model, presence/absence of features). The format and content are typical of a bill of materials or spec sheet. No regulatory constraints, definitions, procedures, principles, or safety thresholds are present.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 39,
+      "text": "## Phantom 3 SE (2017)\n\n- Battery: 4480 mAh\n- Flight time: ~25 minutes\n- Video transmission: 720p live (upgraded from 4K's 480p)\n- Range: 4 km",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 SE (2017)"
+        ],
+        "char_start": 1942,
+        "char_end": 2086
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative product specifications for the DJI Phantom 3 SE: battery capacity (4480 mAh), flight time (~25 minutes), video transmission capability (720p), and transmission range (4 km). These are characteristic technical attributes found in a bill of materials or spec sheet. The format is a bulleted list of static product facts, not operational constraints (regulation/safety_constraint), procedural steps (procedure), definitions (definition), or explanatory prose (principle).",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 40,
+      "text": "## Phantom 4 (2016)\n\n- Battery: 5350 mAh\n- Flight time: ~28 minutes\n- Camera: 1/2.3\", 4K at 30 FPS; 1080p at 120 FPS\n- Electronic shutter: Yes\n- Obstacle avoidance: 4 cameras (2 forward, 2 downward) + ultrasonic\n- New features: ActiveTrack, TapFly\n- Propellers: Push-and-release locking mechanism",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 (2016)"
+        ],
+        "char_start": 2086,
+        "char_end": 2384
+      },
+      "token_count": 97,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component and capability list for the Phantom 4 (2016) drone. It contains quantitative product facts: battery capacity (5350 mAh), flight time (~28 minutes), camera sensor specs (1/2.3\", 4K/30fps, 1080p/120fps), obstacle avoidance hardware (4 cameras + ultrasonic), and physical features (propeller mechanism). These are all characteristic specifications that would appear on a bill of materials or product spec sheet. There are no regulatory obligations, definitions of terms, procedures to follow, explanatory principles, or safety thresholds—just static product traits.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 41,
+      "text": "## Phantom 4 Pro (2016)\n\n- Battery: 5870 mAh\n- Flight time: ~30 minutes\n- Camera: 20MP Sony Exmor R, 1\" CMOS sensor\n- Obstacle avoidance: Upgraded with rear-facing and infrared side sensors\n- Propellers: Model 9450S\n\n## Phantom 4 Pro+ (2016)\n\n- Identical to Pro except: Controller includes 5.5\" built-in screen and integrated flight app\n\n## Phantom 4 Advanced (2017)\n\n- Camera: 1\" CMOS with mechanical shutter\n- Video: 4K H.264 at 60 FPS; H.265 at 30 FPS",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro (2016)"
+        ],
+        "char_start": 2384,
+        "char_end": 2840
+      },
+      "token_count": 143,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bill-of-materials style listing of product specifications for DJI Phantom drone models. It contains quantitative component facts (battery capacity in mAh, flight time in minutes, camera sensor specs, propeller model numbers, video codec and frame rates) and hardware descriptions (sensor types, built-in screen size). These are static product traits describing capabilities and components, not regulatory constraints, procedures, definitions, principles, or safety thresholds. The format—a numbered or bulleted list of specs—is characteristic of technical specification sheets.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 43,
+      "text": "## Phantom 4 RTK (2018)\n\n- Purpose: Aerial mapping and surveying\n- Camera: FC6310R (Exmor R equivalent with glass lens)\n- GNSS: Real-time kinematic module; compatible with GPS, GLONASS, Galileo, BeiDou\n- Redundancy: Dual GNSS module\n- Recording: JPEG images, MOV video format",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 RTK (2018)"
+        ],
+        "char_start": 3038,
+        "char_end": 3315
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts characteristic of a product specification sheet or bill of materials. It includes camera model (FC6310R), GNSS capabilities (Real-time kinematic module with multi-constellation support), redundancy architecture (Dual GNSS), and recording formats (JPEG, MOV). These are static product traits describing what the Phantom 4 RTK includes, not regulatory constraints on use, operational procedures, or safety thresholds. The section header and bullet-point format further reinforce this as a specifications listing.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 44,
+      "text": "## P4 Multispectral (2019)\n\n- Purpose: Agricultural applications\n- Camera: Six-sensor array (RGB + 5 narrow-band)\n- Battery: 5870 mAh\n- Flight time: ~27 minutes\n- Propellers: Model 9455S standard",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "P4 Multispectral (2019)"
+        ],
+        "char_start": 3315,
+        "char_end": 3512
+      },
+      "token_count": 58,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts typical of a product specification sheet or bill of materials. It includes camera sensor configuration, battery capacity (5870 mAh), flight time duration (~27 minutes), and propeller model number (9455S). These are static product traits describing what the P4 Multispectral contains, not regulatory constraints, procedures, definitions, or safety configurations. The section header and list format are characteristic of specifications documentation.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 45,
+      "text": "## Transmission Systems Evolution\n\n- Phantom 1–2: Wi-Fi or 2.4/5.8 GHz direct\n- Phantom 3 Pro/Advanced: Lightbridge (up to 5 km)\n- Phantom 4 Pro V2.0 onward: OcuSync",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Transmission Systems Evolution"
+        ],
+        "char_start": 3512,
+        "char_end": 3678
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk lists transmission system models and their corresponding frequency bands/range across different Phantom drone versions. It reads as a factual comparison table or bill of materials documenting product capabilities (Wi-Fi, Lightbridge, OcuSync) and technical parameters (frequency bands, range in km). It is descriptive of product traits rather than prescriptive of operational constraints or procedures. While the section header mentions 'Evolution,' the content itself is purely informational specification data—typical of a spec sheet or technical reference document.",
+        "composite_confidence": 0.9660000000000001,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 46,
+      "text": "# DJI Phantom Series — Specifications & Component Lists\n\nSource: https://en.wikipedia.org/wiki/DJI_Phantom\n\nPer-model component breakdown for the DJI Phantom quadcopter family. Functions as a bill-of-materials / spec reference across models.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists"
+        ],
+        "char_start": 0,
+        "char_end": 243
+      },
+      "token_count": 51,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk is a header and introductory statement for a specifications and component lists section. It explicitly identifies itself as a 'bill-of-materials / spec reference' and describes per-model component breakdowns. The language ('component breakdown', 'bill-of-materials', 'spec reference') is characteristic of product specification documentation rather than regulatory constraints, procedures, definitions, or safety failsafes. While it does not itself contain quantitative specs (those would appear in the detailed rows below), the chunk establishes the document's purpose as specification-focused, making specification the appropriate classification.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 47,
+      "text": "## Overview\n\nThe DJI Phantom is a quadcopter UAV series developed by Chinese company DJI, starting with the original release in January 2013. Described as the first commercially successful recreational drone, it revolutionized consumer aerial photography through accessibility and user-friendly design.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Overview"
+        ],
+        "char_start": 243,
+        "char_end": 547
+      },
+      "token_count": 55,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "principle"
+        ],
+        "confidence": {
+          "principle": 0.92
+        },
+        "rationale": "This chunk is explanatory, historical, and contextual prose about the DJI Phantom series. It describes the product's origin, market impact, and design philosophy rather than providing a definition (no 'X means Y' form), a specification (no part numbers or numeric capabilities), a procedure (no steps), a regulation (no legal/binding constraint), or a safety constraint (no failsafe or threshold). The content is discursive and informational, fitting the principle category of historical and comparative context.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "principle"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:43:43"
+        }
+      }
+    },
+    {
+      "id": 48,
+      "text": "## Phantom 1 (2013)\n\n- Battery: 2200 mAh LiPo\n- Flight time: ~15 minutes\n- Control frequency: 2.4 GHz\n- Camera: Optional GoPro HERO mount\n- Autopilot: GPS-enabled NAZA-M system",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 1 (2013)"
+        ],
+        "char_start": 547,
+        "char_end": 725
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component specification list for a particular aircraft model (Phantom 1, 2013). It contains quantitative and model-specific facts: battery capacity (2200 mAh), flight time (~15 minutes), control frequency (2.4 GHz), camera compatibility (GoPro HERO mount), and autopilot model (NAZA-M system). These are characteristic entries from a bill of materials or product spec sheet. The content is descriptive of product capabilities and components rather than imposing operational constraints (regulation), defining terms (definition), issuing instructions (procedure), explaining principles (principle), or configuring safety thresholds (safety_constraint).",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:43:44"
+        }
+      }
+    },
+    {
+      "id": 49,
+      "text": "## Phantom FC40\n\n- Control frequency: 5.8 GHz (allowing 2.4 GHz for FPV)\n- Camera: Built-in FC40, 720p at 30 FPS\n- Control: iOS/Android app via Wi-Fi",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom FC40"
+        ],
+        "char_start": 725,
+        "char_end": 876
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.95
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts about the DJI Phantom FC40: control frequency bands (5.8 GHz, 2.4 GHz), camera model and capabilities (FC40, 720p at 30 FPS), and control interface (iOS/Android app via Wi-Fi). These are static product traits typically found in a bill of materials or spec sheet, not operational constraints (regulation), procedures, or explanations of how the system works. The format and content are characteristic of a specifications section.",
+        "composite_confidence": 0.9974999999999999,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:43:47"
+        }
+      }
+    },
+    {
+      "id": 50,
+      "text": "## Phantom 2 Vision (2013)\n\n- Battery: 5200 mAh\n- Flight time: ~25 minutes\n- Camera: Built-in, 1080p at 30/60 FPS, 14MP stills\n- Gimbal: One-axis, 60° vertical motion\n- Storage: MicroSD card\n\n## Phantom 2 Vision+ (2014)\n\n- Gimbal: Three-axis self-stabilizing, 90° vertical tilt\n- Flight time: ~25 minutes\n- Key feature: Camera can point straight down",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 2 Vision (2013)"
+        ],
+        "char_start": 876,
+        "char_end": 1228
+      },
+      "token_count": 113,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk presents a product specification sheet for two DJI Phantom drone models, listing quantitative and model-specific component facts: battery capacity (mAh), flight time (minutes), camera resolution and frame rates, gimbal degrees of motion, and storage type. These are typical rows in a bill of materials or spec sheet describing product traits and capabilities rather than legal constraints, procedures, definitions, or principles. The format and content align precisely with the specification category definition.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:43:48"
+        }
+      }
+    },
+    {
+      "id": 51,
+      "text": "## Phantom 3 Professional (2015)\n\n- Battery: 4480 mAh\n- Flight time: ~23 minutes\n- Camera: Sony Exmor 1/2.3\", 4K at 30 FPS\n- Navigation: GPS + GLONASS\n- Transmission: Lightbridge (5 km range)\n- New feature: Visual positioning system (no-GPS hovering)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Professional (2015)"
+        ],
+        "char_start": 1228,
+        "char_end": 1480
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a product specification sheet for the DJI Phantom 3 Professional. It lists quantitative component facts (battery capacity in mAh, flight time in minutes, camera sensor model and recording capability, navigation system types, transmission range, and a feature description). These are characteristic of a bill of materials or spec sheet—static descriptive facts about the product rather than regulatory constraints, procedures, definitions, or safety configurations. The format and content align directly with the specification category.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "skip",
+          "final_categories": [],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:43:51"
+        }
+      }
+    },
+    {
+      "id": 52,
+      "text": "## Phantom 3 Advanced (2015)\n\n- Camera: Sony Exmor 1/2.3\", 2.7K at 30 FPS (vs Pro's 4K)\n- Battery & flight time: Same as Professional\n- Transmission: Lightbridge",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Advanced (2015)"
+        ],
+        "char_start": 1480,
+        "char_end": 1643
+      },
+      "token_count": 54,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts: camera sensor type and resolution, battery/flight time reference, and transmission system. These are characteristic of a bill of materials or spec sheet. The context header explicitly identifies this as 'Specifications & Component Lists.' While the chunk mentions model comparison ('vs Pro's 4K'), this is still descriptive product capability rather than an operational constraint or regulatory requirement. No procedures, definitions, or safety configurations are present.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "flag",
+          "final_categories": [],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:43:52"
+        }
+      }
+    },
+    {
+      "id": 53,
+      "text": "## Phantom 3 Standard (2015)\n\n- Transmission: Wi-Fi (vs Lightbridge on Pro/Advanced)\n- Camera: 2.7K and 1080p at 30 FPS; 720p at 60 FPS\n- Missing: Visual positioning system, GLONASS\n\n## Phantom 3 4K (2016)\n\n- Camera: 4K Sony Exmor (like Pro)\n- Transmission: Wi-Fi\n- Range: 1.2 km (480p live video)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Standard (2015)"
+        ],
+        "char_start": 1643,
+        "char_end": 1942
+      },
+      "token_count": 104,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists product specifications for two DJI Phantom models, including transmission protocols, camera capabilities (resolution and frame rates), sensor features, and operational range. These are quantitative and model-specific component facts typical of a bill of materials or spec sheet. The format and content are purely descriptive of product traits, not regulatory constraints, procedures, definitions, or safety configurations.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:44:37"
+        }
+      }
+    },
+    {
+      "id": 54,
+      "text": "## Phantom 3 SE (2017)\n\n- Battery: 4480 mAh\n- Flight time: ~25 minutes\n- Video transmission: 720p live (upgraded from 4K's 480p)\n- Range: 4 km",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 SE (2017)"
+        ],
+        "char_start": 1942,
+        "char_end": 2086
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative product characteristics: battery capacity (4480 mAh), flight duration (~25 minutes), video transmission capability (720p), and operational range (4 km). These are static, factual component specifications typical of a bill of materials or product spec sheet. The format and content match the specification category definition precisely. No regulatory constraints, definitions, procedures, principles, or safety configurations are present.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:44:37"
+        }
+      }
+    },
+    {
+      "id": 55,
+      "text": "## Phantom 4 (2016)\n\n- Battery: 5350 mAh\n- Flight time: ~28 minutes\n- Camera: 1/2.3\", 4K at 30 FPS; 1080p at 120 FPS\n- Electronic shutter: Yes\n- Obstacle avoidance: 4 cameras (2 forward, 2 downward) + ultrasonic\n- New features: ActiveTrack, TapFly\n- Propellers: Push-and-release locking mechanism",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 (2016)"
+        ],
+        "char_start": 2086,
+        "char_end": 2384
+      },
+      "token_count": 97,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component and capability list for the DJI Phantom 4 drone model. It enumerates quantitative facts (battery capacity in mAh, flight time in minutes, camera sensor size and resolution, number of obstacle-avoidance cameras) and hardware components (propeller locking mechanism type). These are all static product descriptors typical of a bill of materials or technical specification sheet, not operational constraints (regulation), definitions, procedures, principles, or safety thresholds. The format and content clearly match the specification category.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:44:38"
+        }
+      }
+    },
+    {
+      "id": 56,
+      "text": "## Phantom 4 Pro (2016)\n\n- Battery: 5870 mAh\n- Flight time: ~30 minutes\n- Camera: 20MP Sony Exmor R, 1\" CMOS sensor\n- Obstacle avoidance: Upgraded with rear-facing and infrared side sensors\n- Propellers: Model 9450S\n\n## Phantom 4 Pro+ (2016)\n\n- Identical to Pro except: Controller includes 5.5\" built-in screen and integrated flight app\n\n## Phantom 4 Advanced (2017)\n\n- Camera: 1\" CMOS with mechanical shutter\n- Video: 4K H.264 at 60 FPS; H.265 at 30 FPS",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro (2016)"
+        ],
+        "char_start": 2384,
+        "char_end": 2840
+      },
+      "token_count": 143,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured list of quantitative product facts: battery capacity (mAh), flight time (minutes), camera sensor specs (megapixels, sensor type, size), sensor models, propeller models, screen size, and video codec/frame rate information. Each line reads like a bill of materials or product spec sheet entry. There are no legal obligations (regulation), defined terms (definition), procedures (action steps), explanatory prose (principle), or automated failsafes (safety_constraint). The content is purely descriptive of product hardware and capabilities.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:44:38"
+        }
+      }
+    },
+    {
+      "id": 57,
+      "text": "## Phantom 4 Pro V2.0 (2018)\n\n- Camera: 20MP 1\" Exmor R\n- Transmission: OcuSync\n- ESCs: Improved\n- Propellers: Model 9455S low-noise (backwards compatible)\n- Battery: 5870 mAh / ~30 minutes flight",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro V2.0 (2018)"
+        ],
+        "char_start": 2840,
+        "char_end": 3038
+      },
+      "token_count": 69,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component and capability list for the DJI Phantom 4 Pro V2.0 drone. It enumerates part numbers, sensor models (20MP 1\" Exmor R camera), transmission system (OcuSync), propeller model (9455S), and battery capacity (5870 mAh with flight time estimate). These are all quantitative or model-specific product facts typical of a bill of materials or specification sheet. There are no regulatory constraints, definitions, procedures, principles, or safety thresholds—just static product information.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:44:40"
+        }
+      }
+    },
+    {
+      "id": 59,
+      "text": "## P4 Multispectral (2019)\n\n- Purpose: Agricultural applications\n- Camera: Six-sensor array (RGB + 5 narrow-band)\n- Battery: 5870 mAh\n- Flight time: ~27 minutes\n- Propellers: Model 9455S standard",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "P4 Multispectral (2019)"
+        ],
+        "char_start": 3315,
+        "char_end": 3512
+      },
+      "token_count": 58,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a component and capability list for a specific drone model (DJI Phantom P4 Multispectral). It contains quantitative and model-specific facts: battery capacity (5870 mAh), camera configuration (six-sensor array), propeller model number (9455S), and performance metrics (flight time ~27 minutes). These are all static product attributes typical of a bill of materials or spec sheet. There are no regulatory constraints, definitions of terms, procedures to follow, safety thresholds, or explanatory principles—only enumerated product specifications.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 60,
+      "text": "## Transmission Systems Evolution\n\n- Phantom 1–2: Wi-Fi or 2.4/5.8 GHz direct\n- Phantom 3 Pro/Advanced: Lightbridge (up to 5 km)\n- Phantom 4 Pro V2.0 onward: OcuSync",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Transmission Systems Evolution"
+        ],
+        "char_start": 3512,
+        "char_end": 3678
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk presents a chronological comparison of transmission system models and capabilities across product generations (Phantom 1–2, Phantom 3 Pro/Advanced, Phantom 4 Pro V2.0). Each entry lists a transmission technology (Wi-Fi, Lightbridge, OcuSync) and a numeric range (5 km), characteristic of product specification data. The format resembles a bill of materials or spec sheet row. It is descriptive of product traits rather than prescriptive of user actions (procedure), legal constraints (regulation), or configurable system thresholds (safety_constraint). The section header itself—'Specifications & Component Lists'—reinforces that this is specification content.",
+        "composite_confidence": 0.9660000000000001,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001"
+      }
+    },
+    {
+      "id": 58,
+      "text": "## Phantom 4 RTK (2018)\n\n- Purpose: Aerial mapping and surveying\n- Camera: FC6310R (Exmor R equivalent with glass lens)\n- GNSS: Real-time kinematic module; compatible with GPS, GLONASS, Galileo, BeiDou\n- Redundancy: Dual GNSS module\n- Recording: JPEG images, MOV video format",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 RTK (2018)"
+        ],
+        "char_start": 3038,
+        "char_end": 3315
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.95
+        },
+        "rationale": "This chunk is a component and capability list for the Phantom 4 RTK (2018) model. It enumerates product-specific facts: camera model (FC6310R), GNSS capabilities (GPS, GLONASS, Galileo, BeiDou), redundancy features (dual GNSS), and recording formats (JPEG, MOV). These are static descriptive attributes typical of a bill of materials or spec sheet, not regulatory constraints, definitions, procedures, principles, or safety rules. The format and content align with a manufacturer's technical specification document.",
+        "composite_confidence": 0.9974999999999999,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:45:13"
+        }
+      }
+    },
+    {
+      "id": 61,
+      "text": "# DJI Phantom Series — Specifications & Component Lists\n\nSource: https://en.wikipedia.org/wiki/DJI_Phantom\n\nPer-model component breakdown for the DJI Phantom quadcopter family. Functions as a bill-of-materials / spec reference across models.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists"
+        ],
+        "char_start": 0,
+        "char_end": 243
+      },
+      "token_count": 51,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk is a header and introductory statement for a section containing component lists and specifications for DJI Phantom quadcopters. The language explicitly identifies it as a 'bill-of-materials / spec reference,' which is the archetypal form of specification content. It introduces a structured listing of component facts (parts, models, technical details) rather than legal constraints, definitions, procedures, principles, or safety thresholds. While the actual component details are not shown in this chunk, the framing clearly indicates the section's purpose is to document quantitative and model-specific product information.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:15"
+        }
+      }
+    },
+    {
+      "id": 62,
+      "text": "## Overview\n\nThe DJI Phantom is a quadcopter UAV series developed by Chinese company DJI, starting with the original release in January 2013. Described as the first commercially successful recreational drone, it revolutionized consumer aerial photography through accessibility and user-friendly design.",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Overview"
+        ],
+        "char_start": 243,
+        "char_end": 547
+      },
+      "token_count": 55,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "principle"
+        ],
+        "confidence": {
+          "principle": 0.92
+        },
+        "rationale": "This chunk is explanatory prose describing the history, context, and significance of the DJI Phantom series. It provides background information about the product line (its origin date, manufacturer, market impact) and its role in the drone industry, rather than defining a specific term, imposing a regulatory constraint, listing a component specification, instructing a procedure, or describing a safety mechanism. The content is discursive and contextual in nature, which aligns with the principle category.",
+        "composite_confidence": 0.644,
+        "knn_agreement": 0.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "principle"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:15"
+        }
+      }
+    },
+    {
+      "id": 63,
+      "text": "## Phantom 1 (2013)\n\n- Battery: 2200 mAh LiPo\n- Flight time: ~15 minutes\n- Control frequency: 2.4 GHz\n- Camera: Optional GoPro HERO mount\n- Autopilot: GPS-enabled NAZA-M system",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 1 (2013)"
+        ],
+        "char_start": 547,
+        "char_end": 725
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists component facts and numeric capabilities for the Phantom 1 drone model: battery capacity (2200 mAh LiPo), flight time (~15 minutes), control frequency (2.4 GHz), camera mount, and autopilot system. These are characteristic of a bill of materials or product spec sheet. The format is purely descriptive of static product traits rather than operational constraints (regulation), procedural instructions (procedure), definitions (definition), or explanatory principles (principle). The high confidence reflects the clear-cut nature of specification data.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:16"
+        }
+      }
+    },
+    {
+      "id": 64,
+      "text": "## Phantom FC40\n\n- Control frequency: 5.8 GHz (allowing 2.4 GHz for FPV)\n- Camera: Built-in FC40, 720p at 30 FPS\n- Control: iOS/Android app via Wi-Fi",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom FC40"
+        ],
+        "char_start": 725,
+        "char_end": 876
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.95
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts about the DJI Phantom FC40: control frequency bands (5.8 GHz, 2.4 GHz), camera model and capabilities (720p at 30 FPS), and control interface (iOS/Android app via Wi-Fi). These are all characteristic of a bill-of-materials or spec sheet entry, describing product traits rather than constraining use, imposing obligations, defining terms, explaining principles, or providing procedural steps.",
+        "composite_confidence": 0.9974999999999999,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:16"
+        }
+      }
+    },
+    {
+      "id": 65,
+      "text": "## Phantom 2 Vision (2013)\n\n- Battery: 5200 mAh\n- Flight time: ~25 minutes\n- Camera: Built-in, 1080p at 30/60 FPS, 14MP stills\n- Gimbal: One-axis, 60° vertical motion\n- Storage: MicroSD card\n\n## Phantom 2 Vision+ (2014)\n\n- Gimbal: Three-axis self-stabilizing, 90° vertical tilt\n- Flight time: ~25 minutes\n- Key feature: Camera can point straight down",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 2 Vision (2013)"
+        ],
+        "char_start": 876,
+        "char_end": 1228
+      },
+      "token_count": 113,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a structured list of component facts and quantitative capabilities for two DJI Phantom drone models. It reads as a bill of materials / spec sheet, listing battery capacity (5200 mAh), flight time (~25 minutes), camera specs (1080p at 30/60 FPS, 14MP), gimbal configuration (one-axis vs. three-axis), and storage. Each line describes a static product trait rather than an operational constraint, legal requirement, procedure, or principle. This is classic specification content.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:16"
+        }
+      }
+    },
+    {
+      "id": 66,
+      "text": "## Phantom 3 Professional (2015)\n\n- Battery: 4480 mAh\n- Flight time: ~23 minutes\n- Camera: Sony Exmor 1/2.3\", 4K at 30 FPS\n- Navigation: GPS + GLONASS\n- Transmission: Lightbridge (5 km range)\n- New feature: Visual positioning system (no-GPS hovering)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Professional (2015)"
+        ],
+        "char_start": 1228,
+        "char_end": 1480
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a product specification sheet listing quantitative and model-specific component facts: battery capacity (mAh), flight time (minutes), camera sensor details (resolution, FPS), navigation systems (GPS + GLONASS), transmission range (km), and feature capabilities. Each line reads like a bill-of-materials entry or technical spec sheet, describing what the Phantom 3 Professional contains and what it can do, not constraining how it may be used (regulation), explaining operational procedures (procedure), or defining terms (definition).",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:16"
+        }
+      }
+    },
+    {
+      "id": 67,
+      "text": "## Phantom 3 Advanced (2015)\n\n- Camera: Sony Exmor 1/2.3\", 2.7K at 30 FPS (vs Pro's 4K)\n- Battery & flight time: Same as Professional\n- Transmission: Lightbridge",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Advanced (2015)"
+        ],
+        "char_start": 1480,
+        "char_end": 1643
+      },
+      "token_count": 54,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative and model-specific component facts about the DJI Phantom 3 Advanced: camera model and capabilities (Sony Exmor 1/2.3\", 2.7K at 30 FPS), battery/flight time equivalence, and transmission system (Lightbridge). These are static product traits comparable to rows in a bill of materials or spec sheet, not operational constraints (regulation), procedural steps, explanatory principles, or system configuration thresholds. The comparative note ('vs Pro's 4K') reinforces that this is descriptive specification language rather than prescriptive guidance.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:12"
+        }
+      }
+    },
+    {
+      "id": 68,
+      "text": "## Phantom 3 Standard (2015)\n\n- Transmission: Wi-Fi (vs Lightbridge on Pro/Advanced)\n- Camera: 2.7K and 1080p at 30 FPS; 720p at 60 FPS\n- Missing: Visual positioning system, GLONASS\n\n## Phantom 3 4K (2016)\n\n- Camera: 4K Sony Exmor (like Pro)\n- Transmission: Wi-Fi\n- Range: 1.2 km (480p live video)",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 Standard (2015)"
+        ],
+        "char_start": 1643,
+        "char_end": 1942
+      },
+      "token_count": 104,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists product specifications for two DJI Phantom drone models, including transmission type, camera capabilities (resolution and frame rates), sensor features, and operational range. The format is characteristic of a bill of materials or spec sheet—quantitative, model-specific component facts rather than regulatory constraints, procedures, or safety rules. The absence of obligation language (must, may not) and lack of reference to legal codes confirms this is purely descriptive product information.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:13"
+        }
+      }
+    },
+    {
+      "id": 69,
+      "text": "## Phantom 3 SE (2017)\n\n- Battery: 4480 mAh\n- Flight time: ~25 minutes\n- Video transmission: 720p live (upgraded from 4K's 480p)\n- Range: 4 km",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 3 SE (2017)"
+        ],
+        "char_start": 1942,
+        "char_end": 2086
+      },
+      "token_count": 52,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists quantitative component facts and product capabilities for the DJI Phantom 3 SE, including battery capacity (mAh), flight duration (minutes), video transmission resolution, and transmission range (km). These are characteristic entries in a bill of materials or spec sheet, describing static product traits rather than operational constraints, legal requirements, procedures, or principles. The section header further confirms this is a specifications document.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:18"
+        }
+      }
+    },
+    {
+      "id": 70,
+      "text": "## Phantom 4 (2016)\n\n- Battery: 5350 mAh\n- Flight time: ~28 minutes\n- Camera: 1/2.3\", 4K at 30 FPS; 1080p at 120 FPS\n- Electronic shutter: Yes\n- Obstacle avoidance: 4 cameras (2 forward, 2 downward) + ultrasonic\n- New features: ActiveTrack, TapFly\n- Propellers: Push-and-release locking mechanism",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 (2016)"
+        ],
+        "char_start": 2086,
+        "char_end": 2384
+      },
+      "token_count": 97,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bulleted list of quantitative product characteristics and component facts for the DJI Phantom 4 (2016), including battery capacity (mAh), flight time (minutes), camera sensor specs (sensor size, resolution, frame rates), obstacle avoidance hardware (number and type of cameras), and propeller mechanism type. Each line reads like a row from a bill of materials or spec sheet, describing what the product is rather than constraining how it may be used, regulating its operation, or instructing a user to perform an action. This is clearly specification content.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:18"
+        }
+      }
+    },
+    {
+      "id": 71,
+      "text": "## Phantom 4 Pro (2016)\n\n- Battery: 5870 mAh\n- Flight time: ~30 minutes\n- Camera: 20MP Sony Exmor R, 1\" CMOS sensor\n- Obstacle avoidance: Upgraded with rear-facing and infrared side sensors\n- Propellers: Model 9450S\n\n## Phantom 4 Pro+ (2016)\n\n- Identical to Pro except: Controller includes 5.5\" built-in screen and integrated flight app\n\n## Phantom 4 Advanced (2017)\n\n- Camera: 1\" CMOS with mechanical shutter\n- Video: 4K H.264 at 60 FPS; H.265 at 30 FPS",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro (2016)"
+        ],
+        "char_start": 2384,
+        "char_end": 2840
+      },
+      "token_count": 143,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a product specification sheet listing quantitative and model-specific component facts: battery capacity (mAh), flight time, camera sensor specs (megapixels, sensor type, size), propeller model numbers, controller screen size, and video codec/framerate details. These are static technical facts describing product capabilities and components, not constraints on use (regulation), procedural instructions, definitions, principles, or safety configurations. The format and content are characteristic of a bill of materials or technical datasheet.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:19"
+        }
+      }
+    },
+    {
+      "id": 72,
+      "text": "## Phantom 4 Pro V2.0 (2018)\n\n- Camera: 20MP 1\" Exmor R\n- Transmission: OcuSync\n- ESCs: Improved\n- Propellers: Model 9455S low-noise (backwards compatible)\n- Battery: 5870 mAh / ~30 minutes flight",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 Pro V2.0 (2018)"
+        ],
+        "char_start": 2840,
+        "char_end": 3038
+      },
+      "token_count": 69,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bill-of-materials style list from a product specification sheet for the DJI Phantom 4 Pro V2.0. Each line item describes a quantitative or model-specific component fact: sensor model (20MP 1\" Exmor R), transmission system (OcuSync), propeller model (9455S), and battery capacity (5870 mAh / ~30 min flight). These are static product traits, not operational constraints, legal requirements, procedures, or principles. The format and content are characteristic of a manufacturer's spec sheet.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:19"
+        }
+      }
+    },
+    {
+      "id": 73,
+      "text": "## Phantom 4 RTK (2018)\n\n- Purpose: Aerial mapping and surveying\n- Camera: FC6310R (Exmor R equivalent with glass lens)\n- GNSS: Real-time kinematic module; compatible with GPS, GLONASS, Galileo, BeiDou\n- Redundancy: Dual GNSS module\n- Recording: JPEG images, MOV video format",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Phantom 4 RTK (2018)"
+        ],
+        "char_start": 3038,
+        "char_end": 3315
+      },
+      "token_count": 79,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk lists component facts and model-specific capabilities of the Phantom 4 RTK aircraft: camera model (FC6310R), GNSS module specifications, redundancy features, and recording formats. These are characteristic of a bill of materials or spec sheet. The chunk does not impose operational constraints (regulation), define terminology (definition), describe procedures (procedure), explain physical principles (principle), or configure failsafes (safety_constraint). It is purely descriptive of the product's technical composition.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:21"
+        }
+      }
+    },
+    {
+      "id": 74,
+      "text": "## P4 Multispectral (2019)\n\n- Purpose: Agricultural applications\n- Camera: Six-sensor array (RGB + 5 narrow-band)\n- Battery: 5870 mAh\n- Flight time: ~27 minutes\n- Propellers: Model 9455S standard",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "P4 Multispectral (2019)"
+        ],
+        "char_start": 3315,
+        "char_end": 3512
+      },
+      "token_count": 58,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.98
+        },
+        "rationale": "This chunk is a bill-of-materials style listing of quantitative product facts and component identifiers: camera sensor configuration, battery capacity (5870 mAh), flight time duration, and propeller model number (9455S). Each line describes a static product trait rather than an operational constraint, legal requirement, defined term, procedure step, or principle. The section header and list format are typical of a specification sheet or product datasheet.",
+        "composite_confidence": 1.0,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:24"
+        }
+      }
+    },
+    {
+      "id": 75,
+      "text": "## Transmission Systems Evolution\n\n- Phantom 1–2: Wi-Fi or 2.4/5.8 GHz direct\n- Phantom 3 Pro/Advanced: Lightbridge (up to 5 km)\n- Phantom 4 Pro V2.0 onward: OcuSync",
+      "source": {
+        "document": "dji_phantom_specs.md",
+        "section_path": [
+          "DJI Phantom Series — Specifications & Component Lists",
+          "Transmission Systems Evolution"
+        ],
+        "char_start": 3512,
+        "char_end": 3678
+      },
+      "token_count": 57,
+      "chunk_type": null,
+      "boundary_confidence": null,
+      "manual_override": null,
+      "label": {
+        "rubric_version": 1,
+        "categories": [
+          "specification"
+        ],
+        "confidence": {
+          "specification": 0.92
+        },
+        "rationale": "This chunk lists transmission system models and capabilities (Wi-Fi, Lightbridge, OcuSync) across different Phantom drone versions, along with a range specification (5 km). It reads as a bill of materials or product spec sheet comparing technical traits across product lines. It is not a regulation (no legal obligation or constraint language), not a procedure (no action steps), not a definition (no 'X means Y' form), not a principle (no explanatory prose about how systems work), and not a safety_constraint (no failsafe or threshold configuration). The section title itself ('Specifications & Component Lists') reinforces the specification classification.",
+        "composite_confidence": 0.9660000000000001,
+        "knn_agreement": 1.0,
+        "logprob_signal": null,
+        "llm_model": "claude-haiku-4-5-20251001",
+        "human_review": {
+          "action": "accept",
+          "final_categories": [
+            "specification"
+          ],
+          "reviewer": "default",
+          "notes": "",
+          "reviewed_at": "2026-05-05 14:49:24"
+        }
+      }
+    }
+  ]
+}

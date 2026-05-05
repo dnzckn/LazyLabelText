@@ -78,7 +78,9 @@ class Database:
                 token_count INTEGER,
                 chunk_type TEXT,
                 boundary_confidence REAL,
-                manual_override_json TEXT
+                manual_override_json TEXT,
+                embedding_json TEXT,
+                embedding_model TEXT
             );
 
             CREATE TABLE IF NOT EXISTS labels (
@@ -118,6 +120,8 @@ class Database:
         # Defensive migration for existing project.db files predating new columns.
         for stmt in [
             "ALTER TABLE labels ADD COLUMN logprob_signal REAL",
+            "ALTER TABLE chunks ADD COLUMN embedding_json TEXT",
+            "ALTER TABLE chunks ADD COLUMN embedding_model TEXT",
         ]:
             try:
                 self.conn.execute(stmt)
@@ -370,6 +374,15 @@ class Database:
 
     def _row_to_chunk(self, row: sqlite3.Row) -> Chunk:
         override = row["manual_override_json"]
+        # embedding_json / embedding_model only exist on rows from migrated DBs.
+        try:
+            emb_json = row["embedding_json"]
+        except (IndexError, KeyError):
+            emb_json = None
+        try:
+            emb_model = row["embedding_model"]
+        except (IndexError, KeyError):
+            emb_model = None
         return Chunk(
             id=row["id"],
             document_id=row["document_id"],
@@ -382,7 +395,29 @@ class Database:
             chunk_type=row["chunk_type"],
             boundary_confidence=row["boundary_confidence"],
             manual_override=json.loads(override) if override else None,
+            embedding=json.loads(emb_json) if emb_json else None,
+            embedding_model=emb_model,
         )
+
+    def set_chunk_embedding(
+        self, chunk_id: int, embedding, model_name: str
+    ) -> None:
+        """Persist a chunk's embedding (numpy array or list) and the source model.
+
+        Failures are swallowed by the caller — embedding storage is best-effort.
+        """
+        if embedding is None:
+            return
+        # Coerce numpy arrays to lists for JSON.
+        try:
+            data = embedding.tolist()  # numpy.ndarray
+        except AttributeError:
+            data = list(embedding)
+        self.conn.execute(
+            "UPDATE chunks SET embedding_json = ?, embedding_model = ? WHERE id = ?",
+            (json.dumps(data), model_name, chunk_id),
+        )
+        self.conn.commit()
 
     # --- Labels ---
 

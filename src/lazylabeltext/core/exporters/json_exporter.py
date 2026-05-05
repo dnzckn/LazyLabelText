@@ -47,6 +47,8 @@ class JSONExporter:
                 "chunk_type": chunk.chunk_type,
                 "boundary_confidence": chunk.boundary_confidence,
                 "manual_override": chunk.manual_override,
+                "embedding": chunk.embedding,
+                "embedding_model": chunk.embedding_model,
                 "label": {
                     "rubric_version": rubric.version,
                     "categories": label.predicted_categories,
