@@ -285,8 +285,10 @@ class MainWindow(QMainWindow):
         # Initialize mode widgets with context
         self._init_mode_widgets()
 
-        # Step 1 of the workflow is chunking — open there by default.
-        self.mode_manager.set_mode("chunk")
+        # Step 1 of the workflow is converting — open there by default.
+        # Tab order Convert → Rubric → Chunk → Label → Results → Propagation
+        # → Export mirrors the labeling workflow.
+        self.mode_manager.set_mode("convert")
 
         # Update stats
         self._update_stats()
