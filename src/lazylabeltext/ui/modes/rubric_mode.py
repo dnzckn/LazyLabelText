@@ -430,7 +430,7 @@ class RubricModeWidget(BaseMode):
             return
 
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 json_str = f.read()
 
             if self.ctx.rubric_manager is None:
@@ -493,7 +493,7 @@ class RubricModeWidget(BaseMode):
                 for c in categories
             ]
         }
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
         self.main_window.notification_manager.show_success(f"Exported to {path}")

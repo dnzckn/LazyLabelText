@@ -91,7 +91,7 @@ class HotkeyManager:
                 "primary_key": action.primary_key,
                 "secondary_key": action.secondary_key,
             }
-        with open(self.hotkeys_file, "w") as f:
+        with open(self.hotkeys_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
     def load_hotkeys(self) -> None:
@@ -99,7 +99,7 @@ class HotkeyManager:
         if not self.hotkeys_file.exists():
             return
         try:
-            with open(self.hotkeys_file) as f:
+            with open(self.hotkeys_file, encoding="utf-8") as f:
                 data = json.load(f)
             for name, keys in data.items():
                 if name in self.actions:

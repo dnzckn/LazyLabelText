@@ -80,12 +80,14 @@ class ExportModeWidget(BaseMode):
         import tempfile
 
         fmt = self.format_combo.currentData()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as f:
             tmp_path = f.name
 
         try:
             export_corpus(fmt, self.ctx.database, rubric.id, tmp_path)
-            with open(tmp_path) as f:
+            with open(tmp_path, encoding="utf-8") as f:
                 content = f.read()
             # Show first 5000 chars
             if len(content) > 5000:

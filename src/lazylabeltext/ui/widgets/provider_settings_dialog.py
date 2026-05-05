@@ -99,11 +99,9 @@ class ProviderSettingsDialog(QDialog):
         llm_layout.addRow(self.dotenv_path_label, dotenv_row)
 
         dotenv_help = QLabel(
-            "Format: one KEY=value per line. Comments start with #. "
-            "Quotes are optional. Example:\n"
-            "    AZURE_OPENAI_API_KEY=your-key\n"
-            "    AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com\n"
-            "    OPENAI_API_VERSION=2024-08-01-preview"
+            "See .env.example at the repo root for the format and the full "
+            "list of supported keys. Existing shell env vars are never "
+            "overwritten."
         )
         dotenv_help.setStyleSheet("color: #888; font-size: 11px;")
         dotenv_help.setWordWrap(True)
@@ -356,6 +354,13 @@ class ProviderSettingsDialog(QDialog):
         self.dotenv_path_edit.setEnabled(checked)
         self.dotenv_browse_btn.setEnabled(checked)
         self.dotenv_path_label.setEnabled(checked)
+        # Enabling .env loader implies env-mode for credentials (the user is
+        # explicitly delivering keys via env). Force the env-mode toggle on
+        # so the credential fields hide / gray accordingly.
+        if checked and not self.use_env_check.isChecked():
+            self.use_env_check.setChecked(True)
+        # Re-evaluate field visibility (covers both toggles changing).
+        self._on_use_env_toggled(self.use_env_check.isChecked())
 
     def _browse_dotenv_path(self) -> None:
         path, _ = QFileDialog.getOpenFileName(

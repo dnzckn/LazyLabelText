@@ -40,9 +40,18 @@ class ModeManager:
         for btn_mode, btn in self.mw._mode_buttons.items():
             btn.setChecked(btn_mode == mode)
 
-        # Show the rubric reference panel only in modes that use it.
+        # Show the rubric reference panel only in modes that use it, and
+        # refresh its contents whenever it becomes visible — covers the
+        # case where the rubric was edited / imported since the last view.
         if hasattr(self.mw, "right_panel"):
-            self.mw.right_panel.setVisible(mode in _MODES_WITH_RUBRIC_PANEL)
+            show_rubric = mode in _MODES_WITH_RUBRIC_PANEL
+            self.mw.right_panel.setVisible(show_rubric)
+            if show_rubric and getattr(self.mw, "rubric_manager", None):
+                try:
+                    rubric = self.mw.rubric_manager.get_active_rubric()
+                    self.mw.right_panel.update_rubric(rubric)
+                except Exception:
+                    pass
 
         # Activate/deactivate mode widgets
         old_widget = self.mw.center_panel.get_mode_widget(old_mode)

@@ -77,8 +77,8 @@ class Settings:
         data.pop("embedding_api_key", None)
         filepath = Path(filepath)
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        with open(filepath, "w") as f:
-            json.dump(data, f, indent=4)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
 
     @classmethod
     def load_from_file(cls, filepath: str | Path) -> Settings:
@@ -87,7 +87,7 @@ class Settings:
         if not filepath.exists():
             return cls()
         try:
-            with open(filepath) as f:
+            with open(filepath, encoding="utf-8") as f:
                 data = json.load(f)
             # Only apply known fields
             known = {f.name for f in cls.__dataclass_fields__.values()}
