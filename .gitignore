@@ -41,6 +41,12 @@ Thumbs.db
 *.db-wal
 *.parquet
 
+# Exported labeled corpora — generated artifacts, not source.
+doc_test/labeled_corpus.json
+doc_test/labeled_corpus*.jsonl
+doc_test/labeled_corpus*.parquet
+doc_test/labeled_corpus*.csv
+
 # Model files
 *.pth
 *.pt
