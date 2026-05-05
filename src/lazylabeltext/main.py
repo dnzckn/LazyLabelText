@@ -66,6 +66,16 @@ def main() -> None:
     except Exception:
         pass
 
+    # Proactively populate the tiktoken cache so first-time online users are
+    # set up for offline runs later. Quick when cached / online, silent when
+    # offline (count_tokens will fall back to a heuristic).
+    try:
+        from lazylabeltext.utils.token_counter import warm_encoder_cache
+
+        warm_encoder_cache()
+    except Exception:
+        pass
+
     startup_display.update_step(3, "Setting up main window")
     from lazylabeltext.ui.main_window import MainWindow
 

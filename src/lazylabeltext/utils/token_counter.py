@@ -76,3 +76,17 @@ def is_using_tiktoken() -> bool:
     """Whether token counts are exact (tiktoken) or heuristic. Useful in UI."""
     enc = _get_encoder()
     return bool(enc) and enc is not False
+
+
+def warm_encoder_cache() -> bool:
+    """Eagerly load the tiktoken encoding on startup.
+
+    On a machine with internet, this triggers tiktoken to download + cache
+    `cl100k_base.tiktoken` to its cache directory — meaning later runs (and
+    later runs *offline*) work without the heuristic fallback. On a machine
+    without internet and with no pre-existing cache, this fails quietly; the
+    fallback in count_tokens() takes over.
+
+    Returns True if tiktoken is now active.
+    """
+    return is_using_tiktoken()
