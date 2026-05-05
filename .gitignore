@@ -35,6 +35,12 @@ htmlcov/
 Thumbs.db
 *:Zone.Identifier
 
+# Secrets — .env files (any name) carry API keys and must never be committed.
+# An optional .env.example template is allowed for documentation.
+.env
+.env.*
+!.env.example
+
 # Project data
 *.db
 *.db-shm
