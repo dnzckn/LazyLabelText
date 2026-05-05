@@ -42,6 +42,21 @@ def main() -> None:
     app = QApplication(sys.argv)
     app.setApplicationName("LazyLabelText")
     app.setOrganizationName("LazyLabelText")
+    app.setDesktopFileName("LazyLabelText")
+
+    # QApplication-level icon — many Linux window managers (Wayland/WSLg in
+    # particular) read the taskbar/title-bar icon from the application object,
+    # not from individual top-level windows.
+    try:
+        from PyQt6.QtGui import QIcon
+
+        from lazylabeltext.config.paths import Paths
+
+        _logo = Paths().logo_path
+        if _logo.exists():
+            app.setWindowIcon(QIcon(str(_logo)))
+    except Exception:
+        pass
 
     startup_display.update_step(2, "Applying theme")
     try:

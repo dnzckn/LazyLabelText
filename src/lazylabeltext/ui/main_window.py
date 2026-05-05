@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QButtonGroup,
     QFileDialog,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -146,18 +145,6 @@ class MainWindow(QMainWindow):
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(8, 6, 8, 6)
         toolbar_layout.setSpacing(4)
-
-        # App logo on the left of the toolbar (in addition to the OS window icon).
-        if self.paths.logo_path.exists():
-            from PyQt6.QtGui import QPixmap
-
-            logo_label = QLabel()
-            pixmap = QPixmap(str(self.paths.logo_path)).scaledToHeight(
-                28, Qt.TransformationMode.SmoothTransformation
-            )
-            logo_label.setPixmap(pixmap)
-            logo_label.setContentsMargins(2, 0, 8, 0)
-            toolbar_layout.addWidget(logo_label)
 
         self.mode_button_group = QButtonGroup(self)
         self.mode_button_group.setExclusive(True)
