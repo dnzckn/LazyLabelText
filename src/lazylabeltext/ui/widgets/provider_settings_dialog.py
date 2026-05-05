@@ -323,6 +323,26 @@ class ProviderSettingsDialog(QDialog):
             else:
                 self.api_key_label.setText("API Key:")
 
+        # Azure endpoint is part of the credential bundle — it's read from
+        # AZURE_OPENAI_ENDPOINT in env-mode, so disable the input to match.
+        # API version / SSL / HTTP2 are connection config, not credentials,
+        # so they stay editable regardless.
+        if provider == "azure":
+            self.azure_endpoint_edit.setEnabled(not checked)
+            self.azure_endpoint_label.setEnabled(not checked)
+            if checked:
+                self.azure_endpoint_label.setText(
+                    "Azure endpoint: (from AZURE_OPENAI_ENDPOINT)"
+                )
+                self.azure_endpoint_edit.setPlaceholderText(
+                    "(read from AZURE_OPENAI_ENDPOINT env var)"
+                )
+            else:
+                self.azure_endpoint_label.setText("Azure endpoint:")
+                self.azure_endpoint_edit.setPlaceholderText(
+                    "https://<resource>.openai.azure.com (or set AZURE_OPENAI_ENDPOINT)"
+                )
+
         # The embedding tab inherits the same env-mode toggle: env-mode on →
         # hide the embedding key field; the provider reads OPENAI_API_KEY (or
         # the shared Azure auth) from env vars same as the LLM does.
