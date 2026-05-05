@@ -323,15 +323,43 @@ class ProviderSettingsDialog(QDialog):
             else:
                 self.api_key_label.setText("API Key:")
 
-    def _on_emb_provider_changed(self, provider: str) -> None:
-        # Azure embeddings reuse the LLM Azure config; no separate key field.
-        needs_key = provider in ("openai", "openai-embeddings")
-        self.emb_api_key_edit.setEnabled(needs_key)
-        self.emb_show_key_btn.setEnabled(needs_key)
-        self.emb_api_key_label.setEnabled(needs_key)
+        # The embedding tab inherits the same env-mode toggle: env-mode on →
+        # hide the embedding key field; the provider reads OPENAI_API_KEY (or
+        # the shared Azure auth) from env vars same as the LLM does.
+        self._sync_embedding_key_visibility()
 
+    def _sync_embedding_key_visibility(self) -> None:
+        emb_provider = self.emb_provider_combo.currentText()
+        emb_uses_key = emb_provider in (
+            "openai",
+            "openai-embeddings",
+            "azure",
+            "azure-embeddings",
+        )
+        env_mode = self.use_env_check.isChecked()
+        show_emb_key = emb_uses_key and not env_mode
+        self.emb_api_key_edit.setVisible(show_emb_key)
+        self.emb_show_key_btn.setVisible(show_emb_key)
+        # Keep the label visible to explain what's going on, but reword it.
+        self.emb_api_key_label.setVisible(emb_uses_key)
+        if emb_uses_key:
+            if env_mode:
+                env_hint = (
+                    "AZURE_OPENAI_API_KEY"
+                    if emb_provider in ("azure", "azure-embeddings")
+                    else "OPENAI_API_KEY"
+                )
+                self.emb_api_key_label.setText(f"API Key: (from {env_hint})")
+            else:
+                self.emb_api_key_label.setText("API Key:")
+
+    def _on_emb_provider_changed(self, provider: str) -> None:
         is_none = provider in ("none", "disabled", "off", "")
         self.emb_model_combo.setEnabled(not is_none)
+        # Visibility of the key field is owned by _sync_embedding_key_visibility,
+        # so it reflects both the provider AND the env-mode toggle on the
+        # LLM tab.
+        self._sync_embedding_key_visibility()
 
         self.emb_model_combo.clear()
         if provider in ("openai", "openai-embeddings"):
@@ -437,5 +465,10 @@ class ProviderSettingsDialog(QDialog):
         self.settings.llm_azure_http2 = self.azure_http2_check.isChecked()
         self.settings.embedding_provider = self.emb_provider_combo.currentText()
         self.settings.embedding_model = self.emb_model_combo.currentText()
-        self.settings.embedding_api_key = self.emb_api_key_edit.text()
+        # Drop the embedding key when env-mode is on, same as the LLM key.
+        self.settings.embedding_api_key = (
+            ""
+            if self.use_env_check.isChecked()
+            else self.emb_api_key_edit.text()
+        )
         self.accept()
