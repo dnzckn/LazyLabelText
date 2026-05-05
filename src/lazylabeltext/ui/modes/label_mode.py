@@ -131,12 +131,24 @@ class LabelModeWidget(BaseMode):
             action_row.addWidget(btn)
         layout.addLayout(action_row)
 
-        # Run / Clear buttons
-        self.run_label_btn = QPushButton("Run LLM Labeling on Current Document")
-        self.run_label_btn.setObjectName("accentButton")
-        self.run_label_btn.clicked.connect(self._run_labeling)
-        layout.addWidget(self.run_label_btn)
-        self.run_label_btn.hide()
+        # Labeling buttons — split into per-chunk and per-document scopes.
+        # Either button cancels an in-flight labeling run when clicked again.
+        run_row = QHBoxLayout()
+        run_row.setSpacing(8)
+
+        self.label_chunk_btn = QPushButton("Label This Chunk")
+        self.label_chunk_btn.setObjectName("accentButton")
+        self.label_chunk_btn.clicked.connect(lambda: self._run_labeling("chunk"))
+        run_row.addWidget(self.label_chunk_btn)
+
+        self.label_doc_btn = QPushButton("Label Entire Document")
+        self.label_doc_btn.setObjectName("accentButton")
+        self.label_doc_btn.clicked.connect(lambda: self._run_labeling("document"))
+        run_row.addWidget(self.label_doc_btn)
+
+        layout.addLayout(run_row)
+        self.label_chunk_btn.hide()
+        self.label_doc_btn.hide()
 
         self.clear_labels_btn = QPushButton("Clear Labels for This Document")
         self.clear_labels_btn.setObjectName("dangerButton")
@@ -215,7 +227,8 @@ class LabelModeWidget(BaseMode):
         any_labeled = any(
             self._labels_by_chunk.get(c.id or -1) is not None for c in chunks
         )
-        self.run_label_btn.setVisible(any_unlabeled and bool(chunks))
+        self.label_doc_btn.setVisible(any_unlabeled and bool(chunks))
+        self.label_chunk_btn.setVisible(bool(chunks))
         self.clear_labels_btn.setVisible(any_labeled)
 
         # Pin current_index in range.
@@ -264,6 +277,9 @@ class LabelModeWidget(BaseMode):
             confidences[i] = lab.composite_confidence or 0.0
             if review and review.action:
                 review_actions[i] = review.action
+        # clear_statuses() resets the cell-fill map so discarded chunks lose
+        # their color and fall back to pending grey.
+        self.timeline.timeline.clear_statuses()
         self.timeline.timeline.set_batch_statuses(statuses)
         self.timeline.timeline.set_confidence_scores(confidences)
         self.timeline.timeline.set_review_actions(review_actions)
@@ -282,7 +298,8 @@ class LabelModeWidget(BaseMode):
         self.rationale_label.clear()
         self._clear_confidence_bars()
         self.timeline.timeline.set_frame_count(0)
-        self.run_label_btn.setVisible(False)
+        self.label_chunk_btn.setVisible(False)
+        self.label_doc_btn.setVisible(False)
         self.clear_labels_btn.setVisible(False)
 
     def _clear_confidence_bars(self) -> None:
@@ -498,7 +515,8 @@ class LabelModeWidget(BaseMode):
         any_labeled = any(
             self._labels_by_chunk.get(c.id or -1) is not None for c in self._chunks
         )
-        self.run_label_btn.setVisible(any_unlabeled and bool(self._chunks))
+        self.label_doc_btn.setVisible(any_unlabeled and bool(self._chunks))
+        self.label_chunk_btn.setVisible(bool(self._chunks))
         self.clear_labels_btn.setVisible(any_labeled)
         self._show_current()
         self.main_window._update_stats()
@@ -536,27 +554,49 @@ class LabelModeWidget(BaseMode):
 
     # --- Bulk operations ------------------------------------------------
 
-    def _run_labeling(self) -> None:
-        if self.ctx.label_manager is None or self.ctx.rubric_manager is None:
-            return
+    def _run_labeling(self, scope: str = "document") -> None:
+        """Start (or cancel) a labeling run.
+
+        scope='chunk'    → label only the currently-shown chunk if it's unlabeled.
+        scope='document' → label every unlabeled chunk in the current doc.
+        Clicking either Label button while a run is in flight cancels the run.
+        """
+        # Cancel-on-second-click.
         if self._labeling_worker is not None and self._labeling_worker.isRunning():
+            self._labeling_worker.stop()
+            self.progress_label.setText("Cancelling…")
+            return
+
+        if self.ctx.label_manager is None or self.ctx.rubric_manager is None:
             return
         rubric = self.ctx.rubric_manager.get_active_rubric()
         if rubric is None:
             return
         doc_id = self._current_document_id()
-        unlabeled = self.ctx.label_manager.get_unlabeled_chunks(
-            rubric.id, document_id=doc_id
-        )
-        if not unlabeled:
-            return
 
-        self._labeling_total = len(unlabeled)
-        self.run_label_btn.setEnabled(False)
+        if scope == "chunk":
+            if not self._chunks:
+                return
+            chunk = self._chunks[self._current_index]
+            if self._labels_by_chunk.get(chunk.id or -1) is not None:
+                self.main_window.notification_manager.show_warning(
+                    "This chunk is already labeled — Discard first to re-label."
+                )
+                return
+            target = [chunk]
+        else:
+            target = self.ctx.label_manager.get_unlabeled_chunks(
+                rubric.id, document_id=doc_id
+            )
+            if not target:
+                return
+
+        self._labeling_total = len(target)
+        self._set_label_buttons_to_cancel()
         self.progress_label.setText(f"Labeling 0/{self._labeling_total} chunks...")
 
         worker = LabelingWorker(
-            self.ctx.label_manager, unlabeled, rubric, parent=self
+            self.ctx.label_manager, target, rubric, parent=self
         )
         worker.progress.connect(self._on_labeling_progress)
         worker.chunk_labeled.connect(self._on_labeling_chunk_done)
@@ -564,6 +604,23 @@ class LabelModeWidget(BaseMode):
         worker.error.connect(self._on_labeling_error)
         self._labeling_worker = worker
         worker.start()
+
+    def _set_label_buttons_to_cancel(self) -> None:
+        for btn in (self.label_chunk_btn, self.label_doc_btn):
+            btn.setVisible(True)
+            btn.setText("Cancel Labeling")
+            btn.setObjectName("dangerButton")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
+    def _set_label_buttons_to_run(self) -> None:
+        self.label_chunk_btn.setText("Label This Chunk")
+        self.label_chunk_btn.setObjectName("accentButton")
+        self.label_doc_btn.setText("Label Entire Document")
+        self.label_doc_btn.setObjectName("accentButton")
+        for btn in (self.label_chunk_btn, self.label_doc_btn):
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
     def _on_labeling_progress(self, current: int, total: int) -> None:
         self.progress_label.setText(f"Labeling chunk {current}/{total}...")
@@ -575,13 +632,13 @@ class LabelModeWidget(BaseMode):
         self.main_window.notification_manager.show_success(
             f"Labeled {self._labeling_total} chunks"
         )
-        self.run_label_btn.setEnabled(True)
+        self._set_label_buttons_to_run()
         self._labeling_worker = None
         self._reload()
 
     def _on_labeling_error(self, msg: str) -> None:
         self.main_window.notification_manager.show_error(f"Labeling failed: {msg}")
-        self.run_label_btn.setEnabled(True)
+        self._set_label_buttons_to_run()
         self._labeling_worker = None
 
     def _clear_all_labels(self) -> None:

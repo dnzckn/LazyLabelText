@@ -124,6 +124,34 @@ class TimelineWidget(QWidget):
         self._sorted = True
         self.update()
 
+    # Review actions sort first (urgent → routine), then by original index.
+    # 'flag' first so reviewers can find them; unreviewed last.
+    _REVIEW_ACTION_PRIORITY = {
+        "flag": 0,
+        "skip": 1,
+        "correct": 2,
+        "accept": 3,
+    }
+
+    def sort_by_review_action(self) -> None:
+        """Sort display order so flag/skip/correct/accept group together.
+
+        Cells with no review action sort to the end. Within each group,
+        cells stay in their original order.
+        """
+        self._display_order = sorted(
+            range(self.total_frames),
+            key=lambda idx: (
+                self._REVIEW_ACTION_PRIORITY.get(
+                    self._review_actions.get(idx, ""), 99
+                ),
+                idx,
+            ),
+        )
+        self._rebuild_reverse_order()
+        self._sorted = True
+        self.update()
+
     def reset_sort(self) -> None:
         """Restore natural file order."""
         self._reset_display_order()
@@ -673,7 +701,9 @@ class ZoomableTimeline(QWidget):
 
         self._sort_btn = QPushButton("Sort")
         self._sort_btn.setFixedHeight(btn_h)
-        self._sort_btn.setToolTip("Sort timeline by status (done \u2192 needs work)")
+        self._sort_btn.setToolTip(
+            "Group cells by review status: flagged, skipped, corrected, accepted, then unreviewed"
+        )
         self._sort_btn.setCheckable(True)
         self._sort_btn.setStyleSheet(btn_style)
         self._sort_btn.clicked.connect(self._toggle_sort)
@@ -767,12 +797,20 @@ class ZoomableTimeline(QWidget):
 
     def _toggle_sort(self):
         if self._sort_btn.isChecked():
-            self.sort_by_status()
+            self.sort_by_review_action()
         else:
             self.reset_sort()
 
     def sort_by_status(self):
+        """Legacy alias — sort by category status."""
         self.timeline.sort_by_status()
+        self._sort_btn.setChecked(True)
+        self._sort_btn.setText("Sorted")
+        self.sort_toggled.emit(list(self.timeline._display_order))
+
+    def sort_by_review_action(self):
+        """Group cells by their review-action stripe (flag, skip, correct, accept)."""
+        self.timeline.sort_by_review_action()
         self._sort_btn.setChecked(True)
         self._sort_btn.setText("Sorted")
         self.sort_toggled.emit(list(self.timeline._display_order))
