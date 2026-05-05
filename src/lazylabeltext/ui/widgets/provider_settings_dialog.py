@@ -38,7 +38,7 @@ class ProviderSettingsDialog(QDialog):
         llm_layout.setSpacing(10)
 
         self.llm_provider_combo = QComboBox()
-        self.llm_provider_combo.addItems(["anthropic", "openai", "ollama"])
+        self.llm_provider_combo.addItems(["anthropic", "openai", "google", "ollama"])
         self.llm_provider_combo.currentTextChanged.connect(
             self._on_llm_provider_changed
         )
@@ -128,23 +128,46 @@ class ProviderSettingsDialog(QDialog):
         self.base_url_edit.setVisible(is_ollama)
         self.base_url_label.setVisible(is_ollama)
 
-        needs_key = provider in ("anthropic", "openai")
+        needs_key = provider in ("anthropic", "openai", "google")
         self.api_key_edit.setEnabled(needs_key)
         self.show_key_btn.setEnabled(needs_key)
+
+        env_var_hint = {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "google": "GOOGLE_API_KEY",
+        }.get(provider)
+        if env_var_hint:
+            self.api_key_edit.setPlaceholderText(
+                f"Enter API key or set {env_var_hint} env var"
+            )
+        else:
+            self.api_key_edit.setPlaceholderText(
+                "(Ollama uses no API key — set Base URL below)"
+            )
 
         # Update model suggestions
         self.llm_model_combo.clear()
         if provider == "anthropic":
             self.llm_model_combo.addItems(
                 [
-                    "claude-sonnet-4-20250514",
+                    "claude-opus-4-7",
+                    "claude-sonnet-4-6",
                     "claude-haiku-4-5-20251001",
                 ]
             )
         elif provider == "openai":
-            self.llm_model_combo.addItems(["gpt-4o", "gpt-4o-mini"])
+            self.llm_model_combo.addItems(
+                ["gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini"]
+            )
+        elif provider == "google":
+            self.llm_model_combo.addItems(
+                ["gemini-2.5-flash", "gemini-2.5-pro"]
+            )
         elif provider == "ollama":
-            self.llm_model_combo.addItems(["llama3", "mistral", "gemma2"])
+            self.llm_model_combo.addItems(
+                ["llama3", "mistral", "gemma2", "qwen2.5"]
+            )
 
     def _toggle_key_visibility(self, checked: bool) -> None:
         self.api_key_edit.setEchoMode(
@@ -156,30 +179,34 @@ class ProviderSettingsDialog(QDialog):
         self.test_result_label.setText("Testing...")
         self.test_result_label.setStyleSheet("color: #888;")
 
-        provider = self.llm_provider_combo.currentText()
-        if provider == "anthropic":
-            try:
-                from lazylabeltext.core.providers.anthropic_provider import (
-                    AnthropicProvider,
-                )
+        from lazylabeltext.core.providers import create_llm_provider
 
-                p = AnthropicProvider(
-                    api_key=self.api_key_edit.text(),
-                    model=self.llm_model_combo.currentText(),
+        provider_name = self.llm_provider_combo.currentText()
+        kwargs: dict = {
+            "model": self.llm_model_combo.currentText(),
+        }
+        if provider_name in ("anthropic", "openai", "google"):
+            kwargs["api_key"] = self.api_key_edit.text()
+        if provider_name == "ollama":
+            base_url = self.base_url_edit.text().strip()
+            if base_url:
+                kwargs["base_url"] = base_url
+
+        try:
+            provider = create_llm_provider(provider_name, **kwargs)
+            if provider is None:
+                self.test_result_label.setText(
+                    f"Could not initialize {provider_name} provider"
                 )
-                success, msg = p.test_connection()
-                if success:
-                    self.test_result_label.setText(msg)
-                    self.test_result_label.setStyleSheet("color: #51cf66;")
-                else:
-                    self.test_result_label.setText(msg)
-                    self.test_result_label.setStyleSheet("color: #ff6b6b;")
-            except Exception as e:
-                self.test_result_label.setText(str(e))
                 self.test_result_label.setStyleSheet("color: #ff6b6b;")
-        else:
-            self.test_result_label.setText("Test not implemented for this provider")
-            self.test_result_label.setStyleSheet("color: #ffd43b;")
+                return
+            success, msg = provider.test_connection()
+            color = "#51cf66" if success else "#ff6b6b"
+            self.test_result_label.setText(msg)
+            self.test_result_label.setStyleSheet(f"color: {color};")
+        except Exception as e:
+            self.test_result_label.setText(str(e))
+            self.test_result_label.setStyleSheet("color: #ff6b6b;")
 
     def _save_and_accept(self) -> None:
         self.settings.llm_provider = self.llm_provider_combo.currentText()

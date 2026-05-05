@@ -36,10 +36,15 @@ llt
 
 ### Supported Providers
 
-| Type | Provider | Notes |
-|---|---|---|
-| LLM | Anthropic (Claude) | API key required (`ANTHROPIC_API_KEY` or in-app) |
-| Embedding | sentence-transformers | Local, ~90 MB model downloaded on first use |
+| Type | Provider | Env var | Notes |
+|---|---|---|---|
+| LLM | Anthropic (Claude) | `ANTHROPIC_API_KEY` | hosted; install with `[anthropic]` or `[include-ai]` |
+| LLM | OpenAI (GPT) | `OPENAI_API_KEY` | hosted; install with `[openai]` or `[include-ai]` |
+| LLM | Google (Gemini) | `GOOGLE_API_KEY` | hosted; install with `[google]` or `[include-ai]` |
+| LLM | Ollama (Llama, Mistral, Gemma, Qwen, …) | — | local; needs an Ollama server, configure base URL in-app |
+| Embedding | sentence-transformers | — | local; ~90 MB model downloaded on first use |
+
+Pick the provider in **Provider Settings** inside the app, or set its env var before launch. Switch between providers any time without re-labeling — the existing labels are preserved.
 
 ---
 

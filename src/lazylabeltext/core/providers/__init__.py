@@ -15,15 +15,23 @@ def create_llm_provider(
     provider_type: str, **kwargs: object
 ) -> LLMProviderProtocol | None:
     """Create an LLM provider by type name."""
-    if provider_type == "anthropic":
-        try:
+    try:
+        if provider_type == "anthropic":
             from lazylabeltext.core.providers.anthropic_provider import (
                 AnthropicProvider,
             )
-
             return AnthropicProvider(**kwargs)  # type: ignore[arg-type]
-        except (ImportError, Exception):
-            return None
+        if provider_type == "openai":
+            from lazylabeltext.core.providers.openai_provider import OpenAIProvider
+            return OpenAIProvider(**kwargs)  # type: ignore[arg-type]
+        if provider_type == "google":
+            from lazylabeltext.core.providers.google_provider import GoogleProvider
+            return GoogleProvider(**kwargs)  # type: ignore[arg-type]
+        if provider_type == "ollama":
+            from lazylabeltext.core.providers.ollama_provider import OllamaProvider
+            return OllamaProvider(**kwargs)  # type: ignore[arg-type]
+    except Exception:
+        return None
     return None
 
 

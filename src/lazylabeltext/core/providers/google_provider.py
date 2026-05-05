@@ -1,4 +1,4 @@
-"""Anthropic Claude LLM provider."""
+"""Google Gemini LLM provider (google-genai SDK)."""
 
 from __future__ import annotations
 
@@ -15,18 +15,18 @@ from lazylabeltext.core.providers._classification import (
 logger = logging.getLogger("lazylabeltext")
 
 
-class AnthropicProvider:
-    """LLM classification using Anthropic's Claude API."""
+class GoogleProvider:
+    """LLM classification using Google's Gemini API."""
 
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "gemini-2.5-flash",
     ) -> None:
         self.api_key = (
             api_key
-            or os.environ.get("ANTHROPIC_API_KEY")
-            or os.environ.get("ANTHROPIC_KEY")
+            or os.environ.get("GOOGLE_API_KEY")
+            or os.environ.get("GEMINI_API_KEY")
         )
         self.model = model
         self._client = None
@@ -34,62 +34,66 @@ class AnthropicProvider:
     def _get_client(self):
         if self._client is None:
             try:
-                import anthropic
+                from google import genai
             except ImportError as e:
                 raise LLMProviderError(
-                    "anthropic", "anthropic package not installed"
+                    "google", "google-genai package not installed"
                 ) from e
 
             if not self.api_key:
                 raise LLMProviderError(
-                    "anthropic",
-                    "No API key. Set ANTHROPIC_API_KEY or configure in settings.",
+                    "google",
+                    "No API key. Set GOOGLE_API_KEY or configure in settings.",
                 )
-            self._client = anthropic.Anthropic(api_key=self.api_key)
+            self._client = genai.Client(api_key=self.api_key)
         return self._client
 
     def complete(self, prompt: str, max_tokens: int = 4096) -> str:
-        """Generic single-turn completion. Used by non-classification callers."""
         client = self._get_client()
         try:
-            response = client.messages.create(
+            from google.genai import types
+
+            response = client.models.generate_content(
                 model=self.model,
-                max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}],
+                contents=prompt,
+                config=types.GenerateContentConfig(max_output_tokens=max_tokens),
             )
         except Exception as e:
-            raise LLMProviderError("anthropic", str(e)) from e
-        return response.content[0].text
+            raise LLMProviderError("google", str(e)) from e
+        return response.text or ""
 
     def classify(
         self, chunk_text: str, categories: list[Category]
     ) -> ClassificationResult:
-        """Classify a text chunk against rubric categories."""
         client = self._get_client()
-
         system_prompt = build_classification_system_prompt(categories)
         user_message = f"Classify this text chunk:\n\n{chunk_text}"
 
         try:
-            response = client.messages.create(
+            from google.genai import types
+
+            response = client.models.generate_content(
                 model=self.model,
-                max_tokens=1024,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_message}],
+                contents=user_message,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    max_output_tokens=1024,
+                ),
             )
         except Exception as e:
-            raise LLMProviderError("anthropic", str(e)) from e
+            raise LLMProviderError("google", str(e)) from e
 
-        return parse_classification_response(response.content[0].text, categories)
+        return parse_classification_response(response.text or "", categories)
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the API connection. Returns (success, message)."""
         try:
             client = self._get_client()
-            client.messages.create(
+            from google.genai import types
+
+            client.models.generate_content(
                 model=self.model,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "Say OK"}],
+                contents="Say OK",
+                config=types.GenerateContentConfig(max_output_tokens=10),
             )
             return True, f"Connected to {self.model}"
         except Exception as e:

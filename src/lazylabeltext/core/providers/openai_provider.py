@@ -1,4 +1,4 @@
-"""Anthropic Claude LLM provider."""
+"""OpenAI Chat Completions LLM provider."""
 
 from __future__ import annotations
 
@@ -15,18 +15,18 @@ from lazylabeltext.core.providers._classification import (
 logger = logging.getLogger("lazylabeltext")
 
 
-class AnthropicProvider:
-    """LLM classification using Anthropic's Claude API."""
+class OpenAIProvider:
+    """LLM classification using OpenAI's Chat Completions API."""
 
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "gpt-4o-mini",
     ) -> None:
         self.api_key = (
             api_key
-            or os.environ.get("ANTHROPIC_API_KEY")
-            or os.environ.get("ANTHROPIC_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("OPENAI_KEY")
         )
         self.model = model
         self._client = None
@@ -34,59 +34,59 @@ class AnthropicProvider:
     def _get_client(self):
         if self._client is None:
             try:
-                import anthropic
+                import openai
             except ImportError as e:
                 raise LLMProviderError(
-                    "anthropic", "anthropic package not installed"
+                    "openai", "openai package not installed"
                 ) from e
 
             if not self.api_key:
                 raise LLMProviderError(
-                    "anthropic",
-                    "No API key. Set ANTHROPIC_API_KEY or configure in settings.",
+                    "openai",
+                    "No API key. Set OPENAI_API_KEY or configure in settings.",
                 )
-            self._client = anthropic.Anthropic(api_key=self.api_key)
+            self._client = openai.OpenAI(api_key=self.api_key)
         return self._client
 
     def complete(self, prompt: str, max_tokens: int = 4096) -> str:
-        """Generic single-turn completion. Used by non-classification callers."""
         client = self._get_client()
         try:
-            response = client.messages.create(
+            response = client.chat.completions.create(
                 model=self.model,
                 max_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}],
             )
         except Exception as e:
-            raise LLMProviderError("anthropic", str(e)) from e
-        return response.content[0].text
+            raise LLMProviderError("openai", str(e)) from e
+        return response.choices[0].message.content or ""
 
     def classify(
         self, chunk_text: str, categories: list[Category]
     ) -> ClassificationResult:
-        """Classify a text chunk against rubric categories."""
         client = self._get_client()
-
         system_prompt = build_classification_system_prompt(categories)
         user_message = f"Classify this text chunk:\n\n{chunk_text}"
 
         try:
-            response = client.messages.create(
+            response = client.chat.completions.create(
                 model=self.model,
                 max_tokens=1024,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_message}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
             )
         except Exception as e:
-            raise LLMProviderError("anthropic", str(e)) from e
+            raise LLMProviderError("openai", str(e)) from e
 
-        return parse_classification_response(response.content[0].text, categories)
+        return parse_classification_response(
+            response.choices[0].message.content or "", categories
+        )
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the API connection. Returns (success, message)."""
         try:
             client = self._get_client()
-            client.messages.create(
+            client.chat.completions.create(
                 model=self.model,
                 max_tokens=10,
                 messages=[{"role": "user", "content": "Say OK"}],
