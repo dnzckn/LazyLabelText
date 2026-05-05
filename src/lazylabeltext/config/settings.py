@@ -26,10 +26,22 @@ class Settings:
     llm_api_key: str = ""
     llm_model: str = "claude-sonnet-4-6"
     llm_base_url: str = ""
+    # When True, the provider reads its API key (and Azure endpoint) from
+    # environment variables — the in-app key field is hidden so secrets
+    # never enter app config or settings.json.
+    llm_use_env_credentials: bool = True
+
+    # Azure OpenAI specifics — only consulted when llm_provider == "azure".
+    # api_version + endpoint are typed in by the user, persisted between
+    # sessions; auth still goes through env vars by default.
+    llm_azure_api_version: str = "2024-08-01-preview"
+    llm_azure_endpoint: str = ""
+    llm_azure_verify_ssl: bool = True
+    llm_azure_http2: bool = True
 
     # Embedding Provider — sentence-transformers (free, local) by default.
-    # Switch to OpenAI ada-002 / text-embedding-3-* in Provider Settings if you want
-    # a hosted model. "none" disables both kNN agreement and persisted embeddings.
+    # Switch to OpenAI ada-002 / text-embedding-3-* (or azure embeddings) in
+    # Provider Settings. "none" disables kNN agreement + persisted embeddings.
     embedding_provider: str = "sentence-transformers"
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_api_key: str = ""
@@ -53,6 +65,7 @@ class Settings:
         """Save settings to JSON file."""
         data = asdict(self)
         # Never persist API keys to disk — they live in env vars or session state.
+        # Endpoint URLs are persisted (not secrets).
         data.pop("llm_api_key", None)
         data.pop("embedding_api_key", None)
         filepath = Path(filepath)

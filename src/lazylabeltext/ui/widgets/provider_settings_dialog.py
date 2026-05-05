@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QFormLayout,
@@ -53,11 +54,24 @@ class ProviderSettingsDialog(QDialog):
         llm_layout.setSpacing(10)
 
         self.llm_provider_combo = QComboBox()
-        self.llm_provider_combo.addItems(["anthropic", "openai", "google", "ollama"])
+        self.llm_provider_combo.addItems(
+            ["anthropic", "openai", "google", "azure", "ollama"]
+        )
         self.llm_provider_combo.currentTextChanged.connect(
             self._on_llm_provider_changed
         )
         llm_layout.addRow("Provider:", self.llm_provider_combo)
+
+        self.use_env_check = QCheckBox(
+            "Use environment variables for credentials"
+        )
+        self.use_env_check.setToolTip(
+            "When checked, the provider reads its API key (and Azure endpoint) "
+            "from environment variables — secrets never touch the in-app field "
+            "or settings.json. Recommended for shared / corporate machines."
+        )
+        self.use_env_check.toggled.connect(self._on_use_env_toggled)
+        llm_layout.addRow("", self.use_env_check)
 
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
@@ -71,7 +85,8 @@ class ProviderSettingsDialog(QDialog):
         self.show_key_btn.setCheckable(True)
         self.show_key_btn.toggled.connect(self._toggle_key_visibility)
         key_row.addWidget(self.show_key_btn)
-        llm_layout.addRow("API Key:", key_row)
+        self.api_key_label = QLabel("API Key:")
+        llm_layout.addRow(self.api_key_label, key_row)
 
         self.llm_model_combo = QComboBox()
         self.llm_model_combo.setEditable(True)
@@ -87,6 +102,31 @@ class ProviderSettingsDialog(QDialog):
         self.base_url_edit.setPlaceholderText("http://localhost:11434 (for Ollama)")
         self.base_url_label = QLabel("Base URL:")
         llm_layout.addRow(self.base_url_label, self.base_url_edit)
+
+        # --- Azure-specific fields (visible only when provider == 'azure') ---
+        self.azure_endpoint_edit = QLineEdit()
+        self.azure_endpoint_edit.setPlaceholderText(
+            "https://<resource>.openai.azure.com (or set AZURE_OPENAI_ENDPOINT)"
+        )
+        self.azure_endpoint_label = QLabel("Azure endpoint:")
+        llm_layout.addRow(self.azure_endpoint_label, self.azure_endpoint_edit)
+
+        self.azure_api_version_edit = QLineEdit()
+        self.azure_api_version_edit.setPlaceholderText("e.g. 2024-08-01-preview")
+        self.azure_api_version_label = QLabel("API version:")
+        llm_layout.addRow(self.azure_api_version_label, self.azure_api_version_edit)
+
+        self.azure_verify_check = QCheckBox("Verify SSL")
+        self.azure_verify_check.setToolTip(
+            "Disable for corporate proxies / self-signed CAs."
+        )
+        self.azure_http2_check = QCheckBox("HTTP/2")
+        azure_http_row = QHBoxLayout()
+        azure_http_row.addWidget(self.azure_verify_check)
+        azure_http_row.addWidget(self.azure_http2_check)
+        azure_http_row.addStretch()
+        self.azure_http_label = QLabel("HTTP options:")
+        llm_layout.addRow(self.azure_http_label, azure_http_row)
 
         self.test_btn = QPushButton("Test Connection")
         self.test_btn.setObjectName("accentButton")
@@ -106,7 +146,7 @@ class ProviderSettingsDialog(QDialog):
 
         self.emb_provider_combo = QComboBox()
         self.emb_provider_combo.addItems(
-            ["openai", "sentence-transformers", "none"]
+            ["openai", "azure", "sentence-transformers", "none"]
         )
         self.emb_provider_combo.currentTextChanged.connect(
             self._on_emb_provider_changed
@@ -160,9 +200,27 @@ class ProviderSettingsDialog(QDialog):
 
     def _load_from_settings(self) -> None:
         self.llm_provider_combo.setCurrentText(self.settings.llm_provider)
+        self.use_env_check.setChecked(
+            getattr(self.settings, "llm_use_env_credentials", True)
+        )
         self.api_key_edit.setText(self.settings.llm_api_key)
         self.llm_model_combo.setCurrentText(self.settings.llm_model)
         self.base_url_edit.setText(self.settings.llm_base_url)
+
+        # Azure-specific
+        self.azure_endpoint_edit.setText(
+            getattr(self.settings, "llm_azure_endpoint", "")
+        )
+        self.azure_api_version_edit.setText(
+            getattr(self.settings, "llm_azure_api_version", "2024-08-01-preview")
+        )
+        self.azure_verify_check.setChecked(
+            getattr(self.settings, "llm_azure_verify_ssl", True)
+        )
+        self.azure_http2_check.setChecked(
+            getattr(self.settings, "llm_azure_http2", True)
+        )
+
         self.emb_provider_combo.setCurrentText(self.settings.embedding_provider)
         self._on_emb_provider_changed(self.emb_provider_combo.currentText())
         self.emb_model_combo.setCurrentText(self.settings.embedding_model)
@@ -170,19 +228,38 @@ class ProviderSettingsDialog(QDialog):
             getattr(self.settings, "embedding_api_key", "")
         )
 
+        # Apply visibility/state once everything is populated.
+        self._on_llm_provider_changed(self.llm_provider_combo.currentText())
+        self._on_use_env_toggled(self.use_env_check.isChecked())
+
     def _on_llm_provider_changed(self, provider: str) -> None:
         is_ollama = provider == "ollama"
+        is_azure = provider == "azure"
         self.base_url_edit.setVisible(is_ollama)
         self.base_url_label.setVisible(is_ollama)
 
-        needs_key = provider in ("anthropic", "openai", "google")
-        self.api_key_edit.setEnabled(needs_key)
-        self.show_key_btn.setEnabled(needs_key)
+        # Azure fields are only relevant for the azure provider.
+        for w in (
+            self.azure_endpoint_edit,
+            self.azure_endpoint_label,
+            self.azure_api_version_edit,
+            self.azure_api_version_label,
+            self.azure_verify_check,
+            self.azure_http2_check,
+            self.azure_http_label,
+        ):
+            w.setVisible(is_azure)
+
+        needs_key = provider in ("anthropic", "openai", "google", "azure")
+        self.api_key_label.setVisible(needs_key)
+        for w in (self.api_key_edit, self.show_key_btn):
+            w.setEnabled(needs_key)
 
         env_var_hint = {
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
             "google": "GOOGLE_API_KEY",
+            "azure": "AZURE_OPENAI_API_KEY",
         }.get(provider)
         if env_var_hint:
             self.api_key_edit.setPlaceholderText(
@@ -192,6 +269,9 @@ class ProviderSettingsDialog(QDialog):
             self.api_key_edit.setPlaceholderText(
                 "(Ollama uses no API key — set Base URL below)"
             )
+
+        # Re-apply env-var visibility now that the provider has changed.
+        self._on_use_env_toggled(self.use_env_check.isChecked())
 
         # Update model suggestions
         self.llm_model_combo.clear()
@@ -211,12 +291,40 @@ class ProviderSettingsDialog(QDialog):
             self.llm_model_combo.addItems(
                 ["gemini-2.5-flash", "gemini-2.5-pro"]
             )
+        elif provider == "azure":
+            # In Azure, "model" is the deployment name. Suggest common names
+            # but make the combo editable since users name deployments freely.
+            self.llm_model_combo.addItems(
+                ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"]
+            )
         elif provider == "ollama":
             self.llm_model_combo.addItems(
                 ["llama3", "mistral", "gemma2", "qwen2.5"]
             )
 
+    def _on_use_env_toggled(self, checked: bool) -> None:
+        provider = self.llm_provider_combo.currentText()
+        # When env-mode is on AND the provider supports key auth, hide the key
+        # input entirely so the user can't accidentally save a secret.
+        provider_uses_key = provider in ("anthropic", "openai", "google", "azure")
+        show_key = provider_uses_key and not checked
+        self.api_key_edit.setVisible(show_key)
+        self.show_key_btn.setVisible(show_key)
+        self.api_key_label.setVisible(provider_uses_key)
+        if provider_uses_key:
+            if checked:
+                env_var_hint = {
+                    "anthropic": "ANTHROPIC_API_KEY",
+                    "openai": "OPENAI_API_KEY",
+                    "google": "GOOGLE_API_KEY",
+                    "azure": "AZURE_OPENAI_API_KEY (+ AZURE_OPENAI_ENDPOINT)",
+                }.get(provider, "")
+                self.api_key_label.setText(f"API Key: (from {env_var_hint})")
+            else:
+                self.api_key_label.setText("API Key:")
+
     def _on_emb_provider_changed(self, provider: str) -> None:
+        # Azure embeddings reuse the LLM Azure config; no separate key field.
         needs_key = provider in ("openai", "openai-embeddings")
         self.emb_api_key_edit.setEnabled(needs_key)
         self.emb_show_key_btn.setEnabled(needs_key)
@@ -227,6 +335,14 @@ class ProviderSettingsDialog(QDialog):
 
         self.emb_model_combo.clear()
         if provider in ("openai", "openai-embeddings"):
+            self.emb_model_combo.addItems(
+                [
+                    "text-embedding-ada-002",
+                    "text-embedding-3-small",
+                    "text-embedding-3-large",
+                ]
+            )
+        elif provider in ("azure", "azure-embeddings"):
             self.emb_model_combo.addItems(
                 [
                     "text-embedding-ada-002",
@@ -264,15 +380,26 @@ class ProviderSettingsDialog(QDialog):
         from lazylabeltext.core.providers import create_llm_provider
 
         provider_name = self.llm_provider_combo.currentText()
+        use_env = self.use_env_check.isChecked()
         kwargs: dict = {
             "model": self.llm_model_combo.currentText(),
         }
-        if provider_name in ("anthropic", "openai", "google"):
-            kwargs["api_key"] = self.api_key_edit.text()
+        if provider_name in ("anthropic", "openai", "google", "azure"):
+            kwargs["api_key"] = (
+                "" if use_env else self.api_key_edit.text()
+            )
         if provider_name == "ollama":
             base_url = self.base_url_edit.text().strip()
             if base_url:
                 kwargs["base_url"] = base_url
+        if provider_name == "azure":
+            kwargs["api_version"] = self.azure_api_version_edit.text().strip()
+            endpoint = self.azure_endpoint_edit.text().strip()
+            if endpoint:
+                kwargs["azure_endpoint"] = endpoint
+            kwargs["verify_ssl"] = self.azure_verify_check.isChecked()
+            kwargs["http2"] = self.azure_http2_check.isChecked()
+            kwargs["use_env_credentials"] = use_env
 
         try:
             provider = create_llm_provider(provider_name, **kwargs)
@@ -292,9 +419,22 @@ class ProviderSettingsDialog(QDialog):
 
     def _save_and_accept(self) -> None:
         self.settings.llm_provider = self.llm_provider_combo.currentText()
-        self.settings.llm_api_key = self.api_key_edit.text()
+        self.settings.llm_use_env_credentials = self.use_env_check.isChecked()
+        # Don't keep the field's text in memory if env-mode is on — that way
+        # toggling env-mode off in the same session doesn't accidentally
+        # reuse a stale paste.
+        self.settings.llm_api_key = (
+            "" if self.use_env_check.isChecked() else self.api_key_edit.text()
+        )
         self.settings.llm_model = self.llm_model_combo.currentText()
         self.settings.llm_base_url = self.base_url_edit.text()
+        # Azure-specific (always saved; harmless when the provider isn't azure)
+        self.settings.llm_azure_endpoint = self.azure_endpoint_edit.text().strip()
+        self.settings.llm_azure_api_version = (
+            self.azure_api_version_edit.text().strip() or "2024-08-01-preview"
+        )
+        self.settings.llm_azure_verify_ssl = self.azure_verify_check.isChecked()
+        self.settings.llm_azure_http2 = self.azure_http2_check.isChecked()
         self.settings.embedding_provider = self.emb_provider_combo.currentText()
         self.settings.embedding_model = self.emb_model_combo.currentText()
         self.settings.embedding_api_key = self.emb_api_key_edit.text()

@@ -108,28 +108,56 @@ class MainWindow(QMainWindow):
 
     def _init_providers(self) -> None:
         """Initialize LLM and embedding providers from settings."""
-        if self.settings.llm_api_key or self.settings.llm_provider == "ollama":
-            self.llm_provider = create_llm_provider(
-                self.settings.llm_provider,
-                api_key=self.settings.llm_api_key,
-                model=self.settings.llm_model,
-            )
-        else:
-            # Try from environment variable
-            self.llm_provider = create_llm_provider(
-                self.settings.llm_provider,
-                model=self.settings.llm_model,
-            )
+        provider_name = self.settings.llm_provider
+        use_env = getattr(self.settings, "llm_use_env_credentials", True)
 
+        llm_kwargs: dict = {"model": self.settings.llm_model}
+        if not use_env and self.settings.llm_api_key:
+            llm_kwargs["api_key"] = self.settings.llm_api_key
+        if provider_name == "ollama" and self.settings.llm_base_url:
+            llm_kwargs["base_url"] = self.settings.llm_base_url
+        if provider_name == "azure":
+            llm_kwargs["api_version"] = getattr(
+                self.settings, "llm_azure_api_version", "2024-08-01-preview"
+            )
+            endpoint = getattr(self.settings, "llm_azure_endpoint", "")
+            if endpoint:
+                llm_kwargs["azure_endpoint"] = endpoint
+            llm_kwargs["verify_ssl"] = getattr(
+                self.settings, "llm_azure_verify_ssl", True
+            )
+            llm_kwargs["http2"] = getattr(self.settings, "llm_azure_http2", True)
+            llm_kwargs["use_env_credentials"] = use_env
+
+        self.llm_provider = create_llm_provider(provider_name, **llm_kwargs)
+
+        # Embedding provider — Azure shares the LLM Azure config.
         emb_kwargs: dict = {"model_name": self.settings.embedding_model}
-        if self.settings.embedding_provider in ("openai", "openai-embeddings"):
+        emb_provider = self.settings.embedding_provider
+        if emb_provider in ("openai", "openai-embeddings"):
             emb_kwargs["api_key"] = (
                 getattr(self.settings, "embedding_api_key", "")
                 or self.settings.llm_api_key  # share with LLM key when both are OpenAI
             )
+        elif emb_provider in ("azure", "azure-embeddings"):
+            emb_kwargs["api_version"] = getattr(
+                self.settings, "llm_azure_api_version", "2024-08-01-preview"
+            )
+            endpoint = getattr(self.settings, "llm_azure_endpoint", "")
+            if endpoint:
+                emb_kwargs["azure_endpoint"] = endpoint
+            emb_kwargs["verify_ssl"] = getattr(
+                self.settings, "llm_azure_verify_ssl", True
+            )
+            emb_kwargs["http2"] = getattr(self.settings, "llm_azure_http2", True)
+            emb_kwargs["use_env_credentials"] = use_env
+            if not use_env:
+                emb_kwargs["api_key"] = (
+                    getattr(self.settings, "embedding_api_key", "")
+                    or self.settings.llm_api_key
+                )
         self.embedding_provider = create_embedding_provider(
-            self.settings.embedding_provider,
-            **emb_kwargs,
+            emb_provider, **emb_kwargs
         )
 
     def _setup_ui(self) -> None:

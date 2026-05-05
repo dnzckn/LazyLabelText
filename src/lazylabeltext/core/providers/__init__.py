@@ -30,6 +30,11 @@ def create_llm_provider(
         if provider_type == "ollama":
             from lazylabeltext.core.providers.ollama_provider import OllamaProvider
             return OllamaProvider(**kwargs)  # type: ignore[arg-type]
+        if provider_type in ("azure", "azure-openai"):
+            from lazylabeltext.core.providers.azure_langchain_provider import (
+                AzureLangChainProvider,
+            )
+            return AzureLangChainProvider(**kwargs)  # type: ignore[arg-type]
     except Exception:
         return None
     return None
@@ -52,6 +57,11 @@ def create_embedding_provider(
                 OpenAIEmbeddingProvider,
             )
             return OpenAIEmbeddingProvider(**kwargs)  # type: ignore[arg-type]
+        if provider_type in ("azure", "azure-embeddings"):
+            from lazylabeltext.core.providers.azure_embedding_provider import (
+                AzureEmbeddingProvider,
+            )
+            return AzureEmbeddingProvider(**kwargs)  # type: ignore[arg-type]
     except Exception:
         return None
     return None
