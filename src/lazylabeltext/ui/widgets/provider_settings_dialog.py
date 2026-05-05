@@ -90,12 +90,40 @@ class ProviderSettingsDialog(QDialog):
         emb_layout.setSpacing(10)
 
         self.emb_provider_combo = QComboBox()
-        self.emb_provider_combo.addItems(["sentence-transformers"])
+        self.emb_provider_combo.addItems(
+            ["openai", "sentence-transformers", "none"]
+        )
+        self.emb_provider_combo.currentTextChanged.connect(
+            self._on_emb_provider_changed
+        )
         emb_layout.addRow("Provider:", self.emb_provider_combo)
 
-        self.emb_model_edit = QLineEdit()
-        self.emb_model_edit.setText("all-MiniLM-L6-v2")
-        emb_layout.addRow("Model:", self.emb_model_edit)
+        self.emb_model_combo = QComboBox()
+        self.emb_model_combo.setEditable(True)
+        emb_layout.addRow("Model:", self.emb_model_combo)
+
+        self.emb_api_key_edit = QLineEdit()
+        self.emb_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.emb_api_key_edit.setPlaceholderText(
+            "Enter API key or set OPENAI_API_KEY env var"
+        )
+        emb_key_row = QHBoxLayout()
+        emb_key_row.addWidget(self.emb_api_key_edit)
+        self.emb_show_key_btn = QPushButton("Show")
+        self.emb_show_key_btn.setCheckable(True)
+        self.emb_show_key_btn.toggled.connect(self._toggle_emb_key_visibility)
+        emb_key_row.addWidget(self.emb_show_key_btn)
+        self.emb_api_key_label = QLabel("API Key:")
+        emb_layout.addRow(self.emb_api_key_label, emb_key_row)
+
+        emb_info = QLabel(
+            "Embeddings power kNN agreement (a second confidence signal) and "
+            "are persisted with each chunk for downstream RAG. "
+            "Choose 'none' to disable both."
+        )
+        emb_info.setWordWrap(True)
+        emb_info.setStyleSheet("color: #888; font-size: 11px;")
+        emb_layout.addRow("", emb_info)
 
         tabs.addTab(emb_tab, "Embedding Provider")
 
@@ -121,7 +149,11 @@ class ProviderSettingsDialog(QDialog):
         self.llm_model_combo.setCurrentText(self.settings.llm_model)
         self.base_url_edit.setText(self.settings.llm_base_url)
         self.emb_provider_combo.setCurrentText(self.settings.embedding_provider)
-        self.emb_model_edit.setText(self.settings.embedding_model)
+        self._on_emb_provider_changed(self.emb_provider_combo.currentText())
+        self.emb_model_combo.setCurrentText(self.settings.embedding_model)
+        self.emb_api_key_edit.setText(
+            getattr(self.settings, "embedding_api_key", "")
+        )
 
     def _on_llm_provider_changed(self, provider: str) -> None:
         is_ollama = provider == "ollama"
@@ -169,6 +201,41 @@ class ProviderSettingsDialog(QDialog):
                 ["llama3", "mistral", "gemma2", "qwen2.5"]
             )
 
+    def _on_emb_provider_changed(self, provider: str) -> None:
+        needs_key = provider in ("openai", "openai-embeddings")
+        self.emb_api_key_edit.setEnabled(needs_key)
+        self.emb_show_key_btn.setEnabled(needs_key)
+        self.emb_api_key_label.setEnabled(needs_key)
+
+        is_none = provider in ("none", "disabled", "off", "")
+        self.emb_model_combo.setEnabled(not is_none)
+
+        self.emb_model_combo.clear()
+        if provider in ("openai", "openai-embeddings"):
+            self.emb_model_combo.addItems(
+                [
+                    "text-embedding-ada-002",
+                    "text-embedding-3-small",
+                    "text-embedding-3-large",
+                ]
+            )
+        elif provider == "sentence-transformers":
+            self.emb_model_combo.addItems(
+                [
+                    "all-MiniLM-L6-v2",
+                    "all-mpnet-base-v2",
+                    "BAAI/bge-small-en-v1.5",
+                ]
+            )
+        else:
+            self.emb_model_combo.addItem("(disabled)")
+
+    def _toggle_emb_key_visibility(self, checked: bool) -> None:
+        self.emb_api_key_edit.setEchoMode(
+            QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
+        )
+        self.emb_show_key_btn.setText("Hide" if checked else "Show")
+
     def _toggle_key_visibility(self, checked: bool) -> None:
         self.api_key_edit.setEchoMode(
             QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
@@ -214,5 +281,6 @@ class ProviderSettingsDialog(QDialog):
         self.settings.llm_model = self.llm_model_combo.currentText()
         self.settings.llm_base_url = self.base_url_edit.text()
         self.settings.embedding_provider = self.emb_provider_combo.currentText()
-        self.settings.embedding_model = self.emb_model_edit.text()
+        self.settings.embedding_model = self.emb_model_combo.currentText()
+        self.settings.embedding_api_key = self.emb_api_key_edit.text()
         self.accept()

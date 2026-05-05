@@ -38,14 +38,20 @@ def create_llm_provider(
 def create_embedding_provider(
     provider_type: str, **kwargs: object
 ) -> EmbeddingProviderProtocol | None:
-    """Create an embedding provider by type name."""
-    if provider_type == "sentence-transformers":
-        try:
+    """Create an embedding provider by type name. 'none' / unknown → None."""
+    if provider_type in ("none", "disabled", "off", ""):
+        return None
+    try:
+        if provider_type == "sentence-transformers":
             from lazylabeltext.core.providers.sentence_transformer_provider import (
                 SentenceTransformerProvider,
             )
-
             return SentenceTransformerProvider(**kwargs)  # type: ignore[arg-type]
-        except (ImportError, Exception):
-            return None
+        if provider_type in ("openai", "openai-embeddings"):
+            from lazylabeltext.core.providers.openai_embedding_provider import (
+                OpenAIEmbeddingProvider,
+            )
+            return OpenAIEmbeddingProvider(**kwargs)  # type: ignore[arg-type]
+    except Exception:
+        return None
     return None

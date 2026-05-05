@@ -116,9 +116,15 @@ class MainWindow(QMainWindow):
                 model=self.settings.llm_model,
             )
 
+        emb_kwargs: dict = {"model_name": self.settings.embedding_model}
+        if self.settings.embedding_provider in ("openai", "openai-embeddings"):
+            emb_kwargs["api_key"] = (
+                getattr(self.settings, "embedding_api_key", "")
+                or self.settings.llm_api_key  # share with LLM key when both are OpenAI
+            )
         self.embedding_provider = create_embedding_provider(
             self.settings.embedding_provider,
-            model_name=self.settings.embedding_model,
+            **emb_kwargs,
         )
 
     def _setup_ui(self) -> None:

@@ -24,12 +24,15 @@ class Settings:
     # LLM Provider
     llm_provider: str = "anthropic"
     llm_api_key: str = ""
-    llm_model: str = "claude-sonnet-4-20250514"
+    llm_model: str = "claude-sonnet-4-6"
     llm_base_url: str = ""
 
-    # Embedding Provider
+    # Embedding Provider — sentence-transformers (free, local) by default.
+    # Switch to OpenAI ada-002 / text-embedding-3-* in Provider Settings if you want
+    # a hosted model. "none" disables both kNN agreement and persisted embeddings.
     embedding_provider: str = "sentence-transformers"
     embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_api_key: str = ""
 
     # Labeling
     auto_accept_threshold: float = 0.0  # Disabled by default (conservative)
@@ -49,8 +52,9 @@ class Settings:
     def save_to_file(self, filepath: str | Path) -> None:
         """Save settings to JSON file."""
         data = asdict(self)
-        # Never persist the API key to disk
+        # Never persist API keys to disk — they live in env vars or session state.
         data.pop("llm_api_key", None)
+        data.pop("embedding_api_key", None)
         filepath = Path(filepath)
         filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "w") as f:
