@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazylabeltext"
-version = "0.1.1"
-description = "Desktop tool for producing high-quality labeled text corpora from document collections"
+version = "0.1.2"
+description = "A desktop tool for zero-shot chunk classification with LLMs, with built-in multi-strategy chunking."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"

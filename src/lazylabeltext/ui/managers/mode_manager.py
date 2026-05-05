@@ -12,6 +12,11 @@ logger = logging.getLogger("lazylabeltext")
 
 MODES = ["convert", "rubric", "chunk", "label", "results", "propagation", "export"]
 
+# Modes where the rubric panel on the right is genuinely useful.
+# Convert/Chunk/Propagation/Export don't reference categories.
+# Rubric is redundant (the rubric is the center pane there).
+_MODES_WITH_RUBRIC_PANEL = {"label", "results"}
+
 
 class ModeManager:
     """Manages UI mode switching."""
@@ -34,6 +39,10 @@ class ModeManager:
         # Update toolbar button states
         for btn_mode, btn in self.mw._mode_buttons.items():
             btn.setChecked(btn_mode == mode)
+
+        # Show the rubric reference panel only in modes that use it.
+        if hasattr(self.mw, "right_panel"):
+            self.mw.right_panel.setVisible(mode in _MODES_WITH_RUBRIC_PANEL)
 
         # Activate/deactivate mode widgets
         old_widget = self.mw.center_panel.get_mode_widget(old_mode)

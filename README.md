@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/github/license/dnzckn/LazyLabelText)](https://github.com/dnzckn/LazyLabelText/blob/main/LICENSE)
 
-LazyLabelText is a focused desktop tool for producing high-quality labeled text corpora from document collections.
+**A desktop tool for zero-shot chunk classification with LLMs, with built-in multi-strategy chunking.**
 
 It takes a folder of source documents (PDF, Word, Markdown, plain text), helps a human + LLM team chunk them, label them against a structured rubric, and export the result as a labeled corpus ready to feed downstream systems: consolidation pipelines, RAG indexes, training data, knowledge graphs, audit corpora.
 
