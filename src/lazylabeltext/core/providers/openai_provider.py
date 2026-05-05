@@ -71,6 +71,7 @@ class OpenAIProvider:
             response = client.chat.completions.create(
                 model=self.model,
                 max_tokens=1024,
+                logprobs=True,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
@@ -79,9 +80,19 @@ class OpenAIProvider:
         except Exception as e:
             raise LLMProviderError("openai", str(e)) from e
 
-        return parse_classification_response(
+        result = parse_classification_response(
             response.choices[0].message.content or "", categories
         )
+        # Best-effort logprob extraction; never blocks the result.
+        try:
+            content = response.choices[0].logprobs.content  # type: ignore[union-attr]
+            if content:
+                lp_values = [tok.logprob for tok in content if tok.logprob is not None]
+                if lp_values:
+                    result.avg_logprob = sum(lp_values) / len(lp_values)
+        except Exception:
+            pass
+        return result
 
     def test_connection(self) -> tuple[bool, str]:
         try:

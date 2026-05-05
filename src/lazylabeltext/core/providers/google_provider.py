@@ -78,12 +78,41 @@ class GoogleProvider:
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
                     max_output_tokens=1024,
+                    response_logprobs=True,
                 ),
             )
         except Exception as e:
-            raise LLMProviderError("google", str(e)) from e
+            # Some Gemini models reject response_logprobs; retry without.
+            try:
+                response = client.models.generate_content(
+                    model=self.model,
+                    contents=user_message,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        max_output_tokens=1024,
+                    ),
+                )
+            except Exception as e2:
+                raise LLMProviderError("google", str(e2)) from e2
 
-        return parse_classification_response(response.text or "", categories)
+        result = parse_classification_response(response.text or "", categories)
+        # Best-effort logprob extraction; never blocks the result.
+        try:
+            candidates = getattr(response, "candidates", None) or []
+            if candidates:
+                lp_result = getattr(candidates[0], "logprobs_result", None)
+                if lp_result is not None:
+                    chosen = getattr(lp_result, "chosen_candidates", None) or []
+                    lp_values = [
+                        c.log_probability
+                        for c in chosen
+                        if getattr(c, "log_probability", None) is not None
+                    ]
+                    if lp_values:
+                        result.avg_logprob = sum(lp_values) / len(lp_values)
+        except Exception:
+            pass
+        return result
 
     def test_connection(self) -> tuple[bool, str]:
         try:

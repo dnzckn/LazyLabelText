@@ -89,6 +89,7 @@ class Database:
                 confidence_json TEXT DEFAULT '{}',
                 rationale TEXT,
                 knn_agreement REAL,
+                logprob_signal REAL,
                 composite_confidence REAL,
                 llm_model TEXT,
                 llm_run_id TEXT,
@@ -114,6 +115,15 @@ class Database:
                 related_chunk_ids_json TEXT DEFAULT '[]'
             );
         """)
+        # Defensive migration for existing project.db files predating new columns.
+        for stmt in [
+            "ALTER TABLE labels ADD COLUMN logprob_signal REAL",
+        ]:
+            try:
+                self.conn.execute(stmt)
+            except sqlite3.OperationalError:
+                # Column already exists or table just got created above.
+                pass
         self.conn.commit()
 
     # --- Documents ---
@@ -380,9 +390,9 @@ class Database:
         cur = self.conn.execute(
             """INSERT INTO labels
                (chunk_id, rubric_version_id, predicted_categories_json,
-                confidence_json, rationale, knn_agreement, composite_confidence,
-                llm_model, llm_run_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                confidence_json, rationale, knn_agreement, logprob_signal,
+                composite_confidence, llm_model, llm_run_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 label.chunk_id,
                 label.rubric_version_id,
@@ -390,6 +400,7 @@ class Database:
                 json.dumps(label.confidence_per_category),
                 label.rationale,
                 label.knn_agreement,
+                label.logprob_signal,
                 label.composite_confidence,
                 label.llm_model,
                 label.llm_run_id,
@@ -537,6 +548,12 @@ class Database:
         return results
 
     def _row_to_label(self, row: sqlite3.Row) -> Label:
+        # logprob_signal column was added in a later migration; older DBs may
+        # not have it as a key on the row.
+        try:
+            logprob = row["logprob_signal"]
+        except (IndexError, KeyError):
+            logprob = None
         return Label(
             id=row["id"],
             chunk_id=row["chunk_id"],
@@ -545,6 +562,7 @@ class Database:
             confidence_per_category=json.loads(row["confidence_json"]),
             rationale=row["rationale"] or "",
             knn_agreement=row["knn_agreement"],
+            logprob_signal=logprob,
             composite_confidence=row["composite_confidence"] or 0.0,
             llm_model=row["llm_model"] or "",
             llm_run_id=row["llm_run_id"] or "",

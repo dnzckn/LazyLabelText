@@ -109,6 +109,9 @@ class ClassificationResult:
     categories: list[str] = field(default_factory=list)
     confidence_per_category: dict[str, float] = field(default_factory=dict)
     rationale: str = ""
+    # Mean log-probability of the model's response tokens, when the provider
+    # exposes it (OpenAI, Google). Anthropic + Ollama leave this None.
+    avg_logprob: float | None = None
 
 
 @dataclass
@@ -122,6 +125,7 @@ class Label:
     confidence_per_category: dict[str, float] = field(default_factory=dict)
     rationale: str = ""
     knn_agreement: float | None = None
+    logprob_signal: float | None = None
     composite_confidence: float = 0.0
     llm_model: str = ""
     llm_run_id: str = ""

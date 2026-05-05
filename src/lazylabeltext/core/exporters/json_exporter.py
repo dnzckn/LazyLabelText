@@ -54,6 +54,7 @@ class JSONExporter:
                     "rationale": label.rationale,
                     "composite_confidence": label.composite_confidence,
                     "knn_agreement": label.knn_agreement,
+                    "logprob_signal": label.logprob_signal,
                     "llm_model": label.llm_model,
                 },
             }

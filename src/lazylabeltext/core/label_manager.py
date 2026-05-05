@@ -66,7 +66,7 @@ class LabelManager:
                 logger.debug("kNN agreement computation failed", exc_info=True)
 
         composite = self._compute_composite_confidence(
-            result.confidence_per_category, knn_agreement
+            result.confidence_per_category, knn_agreement, result.avg_logprob
         )
 
         label = Label(
@@ -76,6 +76,7 @@ class LabelManager:
             confidence_per_category=result.confidence_per_category,
             rationale=result.rationale,
             knn_agreement=knn_agreement,
+            logprob_signal=result.avg_logprob,
             composite_confidence=composite,
             llm_model=getattr(self.llm_provider, "model", "unknown"),
             llm_run_id=run_id,
@@ -287,19 +288,38 @@ class LabelManager:
         self,
         confidence_per_category: dict[str, float],
         knn_agreement: float | None,
+        avg_logprob: float | None = None,
     ) -> float:
-        """Compute composite confidence from available signals."""
+        """Compute composite confidence from available signals.
+
+        Sources, in order of trust:
+          - LLM self-reported confidence (always available, weak)
+          - kNN exemplar agreement (when embeddings configured)
+          - avg token log-probability (when the provider exposes it)
+
+        Each signal is folded in if present and silently skipped if not, so
+        Anthropic + Ollama (no logprobs) and projects without an embedding
+        provider both still get a sensible composite.
+        """
         if not confidence_per_category:
             return 0.0
 
         llm_confidence = max(confidence_per_category.values())
+        composite = llm_confidence
 
         if knn_agreement is not None:
             if llm_confidence > 0.8 and knn_agreement > 0.5:
-                return min(1.0, llm_confidence * 1.05)  # Boost
+                composite = min(1.0, llm_confidence * 1.05)
             elif llm_confidence > 0.8 and knn_agreement == 0.0:
-                return llm_confidence * 0.7  # Penalize disagreement
+                composite = llm_confidence * 0.7
             else:
-                return llm_confidence * 0.85
+                composite = llm_confidence * 0.85
 
-        return llm_confidence
+        if avg_logprob is not None:
+            # avg_logprob in (-inf, 0]; > -0.5 ≈ very confident, < -1.5 ≈ uncertain.
+            if avg_logprob > -0.5:
+                composite = min(1.0, composite * 1.03)
+            elif avg_logprob < -1.5:
+                composite = composite * 0.92
+
+        return max(0.0, min(1.0, composite))
