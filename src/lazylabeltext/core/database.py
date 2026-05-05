@@ -167,6 +167,37 @@ class Database:
         ).fetchall()
         return [self._row_to_document(r) for r in rows]
 
+    def delete_document(self, document_id: int) -> None:
+        """Remove a document and cascade-delete all of its derived data.
+
+        Order matters: human_reviews → labels → chunks → chunking_runs
+        → documents (FK constraints with PRAGMA foreign_keys=ON).
+        """
+        self.conn.execute(
+            """DELETE FROM human_reviews
+               WHERE label_id IN (
+                   SELECT l.id FROM labels l
+                   JOIN chunks c ON l.chunk_id = c.id
+                   WHERE c.document_id = ?
+               )""",
+            (document_id,),
+        )
+        self.conn.execute(
+            """DELETE FROM labels
+               WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ?)""",
+            (document_id,),
+        )
+        self.conn.execute(
+            "DELETE FROM chunks WHERE document_id = ?", (document_id,)
+        )
+        self.conn.execute(
+            "DELETE FROM chunking_runs WHERE document_id = ?", (document_id,)
+        )
+        self.conn.execute(
+            "DELETE FROM documents WHERE id = ?", (document_id,)
+        )
+        self.conn.commit()
+
     def update_document_status(self, doc_id: int, status: str) -> None:
         self.conn.execute(
             "UPDATE documents SET status = ? WHERE id = ?", (status, doc_id)
@@ -722,10 +753,12 @@ class Database:
         rows = self.conn.execute(
             """SELECT d.id, d.filename, d.status,
                       COUNT(DISTINCT c.id) as chunk_count,
-                      COUNT(DISTINCT l.id) as label_count
+                      COUNT(DISTINCT l.id) as label_count,
+                      COUNT(DISTINCT hr.id) as reviewed_count
                FROM documents d
                LEFT JOIN chunks c ON d.id = c.document_id
                LEFT JOIN labels l ON c.id = l.chunk_id
+               LEFT JOIN human_reviews hr ON l.id = hr.label_id
                GROUP BY d.id
                ORDER BY d.filename"""
         ).fetchall()
@@ -736,6 +769,7 @@ class Database:
                 "status": r["status"],
                 "chunk_count": r["chunk_count"],
                 "label_count": r["label_count"],
+                "reviewed_count": r["reviewed_count"],
             }
             for r in rows
         ]

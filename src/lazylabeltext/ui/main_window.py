@@ -205,6 +205,12 @@ class MainWindow(QMainWindow):
         self.left_panel.open_folder_requested.connect(self._open_folder_dialog)
         self.left_panel.document_selected.connect(self._on_document_selected)
         self.left_panel.reset_project_requested.connect(self._reset_project)
+        self.left_panel.document_clear_requested.connect(
+            self._clear_document_data
+        )
+        self.left_panel.document_delete_requested.connect(
+            self._delete_document_from_project
+        )
         self.right_panel.rubric_edit_requested.connect(
             lambda: self.mode_manager.set_mode("rubric")
         )
@@ -331,7 +337,7 @@ class MainWindow(QMainWindow):
         self.center_panel.set_mode_widget("export", ExportModeWidget(self.app_context))
 
     def _update_stats(self) -> None:
-        """Update status bar statistics."""
+        """Update status bar + per-document stats in the left panel."""
         if self.database is None:
             self.status_bar.set_project_stats()
             return
@@ -350,6 +356,87 @@ class MainWindow(QMainWindow):
             labels += s["label_count"]
 
         self.status_bar.set_project_stats(docs, chunks, labels)
+        self.left_panel.update_document_stats(status)
+
+    def _clear_document_data(self, doc_id: int) -> None:
+        """Wipe chunks + labels + reviews + chunking_runs for one document."""
+        if self.database is None:
+            return
+        doc = self.document_manager.get_document(doc_id) if self.document_manager else None
+        name = doc.filename if doc else "this document"
+
+        confirm = QMessageBox.question(
+            self,
+            "Clear data for this document?",
+            f"This will wipe every chunk, label, review, and chunking run "
+            f"for '{name}'. The document itself stays in the project; the "
+            f"source file on disk is untouched. This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self.database.delete_all_chunking_for_document(doc_id)
+            if self.audit_manager:
+                self.audit_manager.log_event(
+                    "document_data_cleared", payload={"document_id": doc_id}
+                )
+            self.notification_manager.show_success(f"Cleared data for {name}")
+        except Exception as e:
+            self.notification_manager.show_error(f"Clear failed: {e}")
+            return
+
+        self._update_stats()
+        # Refresh whichever mode is active.
+        current = self.center_panel.current_mode
+        widget = self.center_panel.get_mode_widget(current)
+        if widget and hasattr(widget, "activate"):
+            widget.activate()
+
+    def _delete_document_from_project(self, doc_id: int) -> None:
+        """Remove the document row + cascade-delete every related record."""
+        if self.database is None:
+            return
+        doc = self.document_manager.get_document(doc_id) if self.document_manager else None
+        name = doc.filename if doc else "this document"
+
+        confirm = QMessageBox.question(
+            self,
+            "Remove document from project?",
+            f"This will remove '{name}' from the project, including its "
+            f"chunks, labels, reviews, and chunking runs. The source file "
+            f"on disk is NOT deleted — you can re-add it via Open Folder. "
+            f"This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self.database.delete_document(doc_id)
+            if self.audit_manager:
+                self.audit_manager.log_event(
+                    "document_removed", payload={"document_id": doc_id}
+                )
+            self.notification_manager.show_success(
+                f"Removed {name} from project"
+            )
+        except Exception as e:
+            self.notification_manager.show_error(f"Remove failed: {e}")
+            return
+
+        # Repopulate the tree from the DB.
+        if self.document_manager:
+            docs = self.document_manager.get_all_documents()
+            self.left_panel.populate(docs)
+        self._update_stats()
+        current = self.center_panel.current_mode
+        widget = self.center_panel.get_mode_widget(current)
+        if widget and hasattr(widget, "activate"):
+            widget.activate()
 
     def _update_provider_status(self) -> None:
         """Update provider indicator in status bar."""
