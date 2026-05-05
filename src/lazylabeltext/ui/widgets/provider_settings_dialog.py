@@ -238,6 +238,13 @@ class ProviderSettingsDialog(QDialog):
         self.base_url_edit.setVisible(is_ollama)
         self.base_url_label.setVisible(is_ollama)
 
+        # Auto-pair embedding with Azure when the LLM is Azure: same endpoint,
+        # same auth, same SSL/HTTP config. ada-002 is the canonical default
+        # deployment name; user can override after.
+        if is_azure and self.emb_provider_combo.currentText() != "azure":
+            self.emb_provider_combo.setCurrentText("azure")
+            self.emb_model_combo.setCurrentText("text-embedding-ada-002")
+
         # Azure fields are only relevant for the azure provider.
         for w in (
             self.azure_endpoint_edit,
