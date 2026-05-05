@@ -638,6 +638,16 @@ class Database:
     # --- Human reviews ---
 
     def insert_review(self, review: HumanReview) -> int:
+        """Insert a human review, replacing any prior review on the same label.
+
+        Each label has at most one canonical review; submitting a new one
+        (e.g. user changes their mind from Accept to Skip) replaces the old
+        row rather than stacking. The audit_events log preserves the history.
+        """
+        if review.label_id:
+            self.conn.execute(
+                "DELETE FROM human_reviews WHERE label_id = ?", (review.label_id,)
+            )
         cur = self.conn.execute(
             """INSERT INTO human_reviews
                (label_id, reviewer, action, final_categories_json, notes)
@@ -749,12 +759,20 @@ class Database:
         }
 
     def get_document_label_status(self) -> list[dict]:
-        """Get labeling status per document."""
+        """Get labeling status per document.
+
+        reviewed_count counts distinct *labels* that have at least one review,
+        not raw rows in human_reviews — so duplicate review history (from
+        older builds where insert_review didn't replace) doesn't inflate it.
+        """
         rows = self.conn.execute(
             """SELECT d.id, d.filename, d.status,
                       COUNT(DISTINCT c.id) as chunk_count,
                       COUNT(DISTINCT l.id) as label_count,
-                      COUNT(DISTINCT hr.id) as reviewed_count
+                      COUNT(DISTINCT CASE
+                          WHEN hr.id IS NOT NULL THEN l.id
+                          ELSE NULL
+                      END) as reviewed_count
                FROM documents d
                LEFT JOIN chunks c ON d.id = c.document_id
                LEFT JOIN labels l ON c.id = l.chunk_id
