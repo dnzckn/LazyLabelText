@@ -52,3 +52,24 @@ class Paths:
     @property
     def logo_path(self) -> Path:
         return self.demo_pictures_dir / "logo2.png"
+
+    @property
+    def models_dir(self) -> Path:
+        """Local model cache for offline-friendly embeddings.
+
+        Mirrors LazyLabel's pattern: each model is downloaded once and saved
+        here, then loaded from disk on subsequent runs. Letting users copy
+        this folder onto an air-gapped machine is the manual-install path.
+        """
+        d = self.app_dir / "models"
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            # Frozen / read-only install — caller will handle the missing dir.
+            pass
+        return d
+
+    def model_path(self, model_name: str) -> Path:
+        """Return the local path for a named embedding model."""
+        # Slashes in HF model names ("BAAI/bge-small-en-v1.5") become subdirs.
+        return self.models_dir / model_name.replace("/", "__")

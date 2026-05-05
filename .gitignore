@@ -47,11 +47,13 @@ doc_test/labeled_corpus*.jsonl
 doc_test/labeled_corpus*.parquet
 doc_test/labeled_corpus*.csv
 
-# Model files
+# Model files (cached locally; not source)
 *.pth
 *.pt
 *.bin
 *.onnx
+*.safetensors
+src/lazylabeltext/models/
 
 # Logs
 *.log
