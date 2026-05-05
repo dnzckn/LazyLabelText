@@ -92,7 +92,10 @@ class MainWindow(QMainWindow):
         self._setup_shortcuts()
 
         # 8. Window geometry
-        self.setWindowTitle("LazyLabelText")
+        from lazylabeltext import __version__
+
+        self._title_base = f"LazyLabelText by Deniz N. Cakan (version {__version__})"
+        self.setWindowTitle(self._title_base)
         self.resize(self.settings.window_width, self.settings.window_height)
 
         # 9. Update status bar
@@ -281,7 +284,7 @@ class MainWindow(QMainWindow):
         self.settings.last_project_path = folder_path
         self.settings.save_to_file(str(self.paths.settings_file))
 
-        self.setWindowTitle(f"LazyLabelText - {Path(folder_path).name}")
+        self.setWindowTitle(f"{self._title_base} — {Path(folder_path).name}")
         self.notification_manager.show_success(f"Opened project: {len(docs)} documents")
 
     def _init_mode_widgets(self) -> None:

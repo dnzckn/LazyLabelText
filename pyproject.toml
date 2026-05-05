@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazylabeltext"
-version = "0.1.0"
+version = "0.1.1"
 description = "Desktop tool for producing high-quality labeled text corpora from document collections"
 readme = "README.md"
 license = "Apache-2.0"
