@@ -31,6 +31,8 @@ class LabelingWorker(QThread):
         self.chunks = list(chunks)  # Snapshot
         self.rubric = rubric
         self._should_stop = False
+        self.was_cancelled = False
+        self.completed_count = 0
 
     def stop(self) -> None:
         self._should_stop = True
@@ -39,8 +41,10 @@ class LabelingWorker(QThread):
         try:
             for i, chunk in enumerate(self.chunks):
                 if self._should_stop:
-                    return
+                    self.was_cancelled = True
+                    break  # fall through to finished.emit() so the UI can clean up
                 self.label_manager.label_chunk(chunk, self.rubric)
+                self.completed_count = i + 1
                 self.chunk_labeled.emit(chunk.id or 0)
                 self.progress.emit(i + 1, len(self.chunks))
             self.finished.emit()

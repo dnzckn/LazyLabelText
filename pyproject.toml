@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazylabeltext"
-version = "0.1.9"
+version = "0.1.10"
 description = "A desktop tool for zero-shot chunk classification with LLMs, with built-in multi-strategy chunking."
 readme = "README.md"
 license = "Apache-2.0"

@@ -625,13 +625,59 @@ class LabelModeWidget(BaseMode):
     def _on_labeling_progress(self, current: int, total: int) -> None:
         self.progress_label.setText(f"Labeling chunk {current}/{total}...")
 
-    def _on_labeling_chunk_done(self, _chunk_id: int) -> None:
-        self._reload()
+    def _on_labeling_chunk_done(self, chunk_id: int) -> None:
+        """Incremental per-chunk update — never call the full _reload() here.
+
+        A document-wide reload per chunk is O(N) DB queries × N signals = O(N²)
+        and locks the GUI for big docs. Just paint the one cell.
+        """
+        if self.ctx.database is None or self.ctx.rubric_manager is None:
+            return
+        rubric = self.ctx.rubric_manager.get_active_rubric()
+        if rubric is None:
+            return
+
+        try:
+            labels = self.ctx.database.get_labels_for_chunk(chunk_id)
+        except Exception:
+            return
+        new_label = None
+        for lab in labels:
+            if lab.rubric_version_id == rubric.id:
+                new_label = lab
+                break
+        if new_label is None:
+            return
+
+        self._labels_by_chunk[chunk_id] = new_label
+
+        # Find the chunk's display index in the timeline and update only that cell.
+        for i, chunk in enumerate(self._chunks):
+            if chunk.id == chunk_id:
+                cats = new_label.predicted_categories
+                if cats:
+                    self.timeline.timeline.set_frame_status(i, cats[0])
+                self.timeline.timeline.set_frame_confidence(
+                    i, new_label.composite_confidence or 0.0
+                )
+                break
 
     def _on_labeling_finished(self) -> None:
-        self.main_window.notification_manager.show_success(
-            f"Labeled {self._labeling_total} chunks"
+        worker = self._labeling_worker
+        cancelled = bool(worker and getattr(worker, "was_cancelled", False))
+        done = (
+            getattr(worker, "completed_count", self._labeling_total)
+            if worker
+            else self._labeling_total
         )
+        if cancelled:
+            self.main_window.notification_manager.show_warning(
+                f"Labeling cancelled after {done}/{self._labeling_total} chunks"
+            )
+        else:
+            self.main_window.notification_manager.show_success(
+                f"Labeled {self._labeling_total} chunks"
+            )
         self._set_label_buttons_to_run()
         self._labeling_worker = None
         self._reload()
