@@ -161,6 +161,14 @@ class Database:
             return None
         return self._row_to_document(row)
 
+    def get_document_by_filename(self, filename: str) -> ConvertedDocument | None:
+        row = self.conn.execute(
+            "SELECT * FROM documents WHERE filename = ? LIMIT 1", (filename,)
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_document(row)
+
     def get_all_documents(self) -> list[ConvertedDocument]:
         rows = self.conn.execute(
             "SELECT * FROM documents ORDER BY ingested_at"

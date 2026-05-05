@@ -49,7 +49,20 @@ class DocumentManager:
         return documents
 
     def load_single(self, file_path: str) -> ConvertedDocument:
-        """Convert a single file and store in database."""
+        """Convert a single file and store in database (idempotent on filename).
+
+        If a document with this filename already exists in the project, return
+        the existing row — re-opening a folder must not duplicate documents
+        and orphan their chunks/labels under stale IDs.
+        """
+        path = Path(file_path)
+        existing = self.db.get_document_by_filename(path.name)
+        if existing is not None:
+            logger.debug(
+                "Document already in project: %s (id=%d)", path.name, existing.id or 0
+            )
+            return existing
+
         doc = convert_file(file_path)
         doc.id = self.db.insert_document(doc)
         logger.info(
