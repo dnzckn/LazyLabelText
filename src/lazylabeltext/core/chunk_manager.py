@@ -17,28 +17,49 @@ logger = logging.getLogger("lazylabeltext")
 class ChunkManager:
     """Orchestrates chunking operations."""
 
-    def __init__(self, database: Database) -> None:
+    def __init__(
+        self, database: Database, embedding_provider=None, llm_provider=None
+    ) -> None:
         self.db = database
+        self.embedding_provider = embedding_provider
+        self.llm_provider = llm_provider
+
+    def set_embedding_provider(self, provider) -> None:
+        self.embedding_provider = provider
+
+    def set_llm_provider(self, provider) -> None:
+        self.llm_provider = provider
 
     def run_chunking(
         self, document_id: int, strategy: str, params: dict
     ) -> ChunkingRun:
-        """Run a chunking strategy on a document."""
+        """Run a chunking strategy on a document. Replaces any prior chunks."""
         doc = self.db.get_document(document_id)
         if doc is None:
             raise ChunkOperationError("chunk", f"Document {document_id} not found")
+
+        # Re-chunking replaces prior runs/chunks/labels/reviews for this doc.
+        self.db.delete_all_chunking_for_document(document_id)
+
+        # Persisted params: drop runtime-injected internals (callbacks, providers).
+        persisted_params = {k: v for k, v in params.items() if not k.startswith("_")}
 
         # Create the chunking run record
         run = ChunkingRun(
             document_id=document_id,
             strategy=strategy,
-            params=params,
+            params=persisted_params,
             started_at=datetime.now(timezone.utc).isoformat(),
         )
         run.id = self.db.insert_chunking_run(run)
 
+        # Inject providers for chunkers that need them.
+        chunker_params = dict(params)
+        chunker_params["_embedding_provider"] = self.embedding_provider
+        chunker_params["_llm_provider"] = self.llm_provider
+
         # Run the chunker
-        chunks = chunk_document(doc, strategy, params)
+        chunks = chunk_document(doc, strategy, chunker_params)
 
         # Store chunks with run reference
         for chunk in chunks:

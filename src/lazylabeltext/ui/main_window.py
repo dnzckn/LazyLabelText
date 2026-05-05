@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QSplitter,
     QVBoxLayout,
@@ -189,6 +190,7 @@ class MainWindow(QMainWindow):
         """Wire up signal-slot connections."""
         self.left_panel.open_folder_requested.connect(self._open_folder_dialog)
         self.left_panel.document_selected.connect(self._on_document_selected)
+        self.left_panel.reset_project_requested.connect(self._reset_project)
         self.right_panel.rubric_edit_requested.connect(
             lambda: self.mode_manager.set_mode("rubric")
         )
@@ -234,7 +236,9 @@ class MainWindow(QMainWindow):
         # Initialize managers
         self.document_manager = DocumentManager(self.database)
         self.rubric_manager = RubricManager(self.database)
-        self.chunk_manager = ChunkManager(self.database)
+        self.chunk_manager = ChunkManager(
+            self.database, self.embedding_provider, self.llm_provider
+        )
         self.label_manager = LabelManager(
             self.database, self.llm_provider, self.embedding_provider
         )
@@ -266,6 +270,9 @@ class MainWindow(QMainWindow):
 
         # Initialize mode widgets with context
         self._init_mode_widgets()
+
+        # Step 1 of the workflow is chunking — open there by default.
+        self.mode_manager.set_mode("chunk")
 
         # Update stats
         self._update_stats()
@@ -363,6 +370,44 @@ class MainWindow(QMainWindow):
         if widget and hasattr(widget, "on_document_selected"):
             widget.on_document_selected(doc_id)
 
+    def _reset_project(self) -> None:
+        """Wipe project.db and reopen the project at the same folder."""
+        if self.database is None:
+            self.notification_manager.show_warning("No project open.")
+            return
+
+        from pathlib import Path
+
+        db_path = Path(self.database.db_path)
+        folder = db_path.parent
+
+        confirm = QMessageBox.question(
+            self,
+            "Reset project?",
+            f"This will delete {db_path.name} and erase every chunk, label, "
+            f"review, and audit event for this project.\n\n"
+            f"The source documents in {folder} are NOT touched.\n\n"
+            "This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self.database.close()
+        except Exception:
+            pass
+
+        try:
+            db_path.unlink(missing_ok=True)
+        except Exception as e:
+            self.notification_manager.show_error(f"Could not delete DB: {e}")
+            return
+
+        self.open_project(str(folder))
+        self.notification_manager.show_success("Project reset.")
+
     def _open_folder_dialog(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Open Document Folder")
         if folder:
@@ -375,6 +420,9 @@ class MainWindow(QMainWindow):
             if self.label_manager:
                 self.label_manager.set_llm_provider(self.llm_provider)
                 self.label_manager.set_embedding_provider(self.embedding_provider)
+            if self.chunk_manager:
+                self.chunk_manager.set_embedding_provider(self.embedding_provider)
+                self.chunk_manager.set_llm_provider(self.llm_provider)
             self._update_provider_status()
             self.settings.save_to_file(str(self.paths.settings_file))
             self.notification_manager.show_success("Settings saved")

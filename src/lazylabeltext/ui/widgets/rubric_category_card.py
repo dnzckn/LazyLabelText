@@ -75,7 +75,8 @@ class RubricCategoryCard(QWidget):
 
         # Exemplars
         exemplar_header = QHBoxLayout()
-        exemplar_header.addWidget(QLabel("Exemplars:"))
+        self.exemplar_label = QLabel("Exemplars:")
+        exemplar_header.addWidget(self.exemplar_label)
         exemplar_header.addStretch()
         add_ex_btn = QPushButton("+ Add")
         add_ex_btn.clicked.connect(self._add_exemplar)
@@ -83,7 +84,9 @@ class RubricCategoryCard(QWidget):
         body_layout.addLayout(exemplar_header)
 
         self.exemplar_list = QListWidget()
-        self.exemplar_list.setMaximumHeight(100)
+        self.exemplar_list.setMinimumHeight(140)
+        self.exemplar_list.setMaximumHeight(260)
+        self.exemplar_list.setWordWrap(True)
         self.exemplar_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.exemplar_list.itemDoubleClicked.connect(self._edit_exemplar)
         body_layout.addWidget(self.exemplar_list)
@@ -115,6 +118,7 @@ class RubricCategoryCard(QWidget):
         self.exemplar_list.clear()
         for ex in cat.exemplars:
             self.exemplar_list.addItem(ex)
+        self.exemplar_label.setText(f"Exemplars ({len(cat.exemplars)}):")
         self.threshold_slider.setValue(int(cat.confidence_threshold * 100))
 
     def to_category(self) -> Category:
@@ -137,12 +141,16 @@ class RubricCategoryCard(QWidget):
         self.body.setVisible(not self._collapsed)
         self.collapse_btn.setText("v" if self._collapsed else "^")
 
+    def _refresh_exemplar_count_label(self) -> None:
+        self.exemplar_label.setText(f"Exemplars ({self.exemplar_list.count()}):")
+
     def _add_exemplar(self) -> None:
         self.exemplar_list.addItem("(double-click to edit)")
         item = self.exemplar_list.item(self.exemplar_list.count() - 1)
         if item:
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
             self.exemplar_list.editItem(item)
+        self._refresh_exemplar_count_label()
         self.changed.emit()
 
     def _edit_exemplar(self, item) -> None:
@@ -154,6 +162,7 @@ class RubricCategoryCard(QWidget):
         current = self.exemplar_list.currentRow()
         if current >= 0:
             self.exemplar_list.takeItem(current)
+            self._refresh_exemplar_count_label()
             self.changed.emit()
 
     def _on_threshold_changed(self, value: int) -> None:

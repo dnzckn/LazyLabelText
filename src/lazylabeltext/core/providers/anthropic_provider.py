@@ -45,6 +45,19 @@ class AnthropicProvider:
             self._client = anthropic.Anthropic(api_key=self.api_key)
         return self._client
 
+    def complete(self, prompt: str, max_tokens: int = 4096) -> str:
+        """Generic single-turn completion. Used by non-classification callers."""
+        client = self._get_client()
+        try:
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except Exception as e:
+            raise LLMProviderError("anthropic", str(e)) from e
+        return response.content[0].text
+
     def classify(
         self, chunk_text: str, categories: list[Category]
     ) -> ClassificationResult:

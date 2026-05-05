@@ -44,7 +44,11 @@ class JSONExporter:
                     "char_end": chunk.char_end,
                 },
                 "token_count": chunk.token_count,
+                "chunk_type": chunk.chunk_type,
+                "boundary_confidence": chunk.boundary_confidence,
+                "manual_override": chunk.manual_override,
                 "label": {
+                    "rubric_version": rubric.version,
                     "categories": label.predicted_categories,
                     "confidence": label.confidence_per_category,
                     "rationale": label.rationale,

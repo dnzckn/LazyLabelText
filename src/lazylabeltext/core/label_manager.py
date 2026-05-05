@@ -49,8 +49,9 @@ class LabelManager:
 
         run_id = str(uuid.uuid4())[:8]
 
+        classify_text = self._build_classification_text(chunk)
         try:
-            result = self.llm_provider.classify(chunk.text, rubric.categories)
+            result = self.llm_provider.classify(classify_text, rubric.categories)
         except Exception as e:
             raise ClassificationError(chunk.id or 0, str(e)) from e
 
@@ -98,10 +99,15 @@ class LabelManager:
         return labels
 
     def get_review_queue(
-        self, rubric_version_id: int, threshold: float = 1.0
+        self,
+        rubric_version_id: int,
+        threshold: float = 1.0,
+        document_id: int | None = None,
     ) -> list[tuple[Chunk, Label]]:
         """Get chunks needing review, sorted by confidence ascending."""
-        return self.db.get_chunks_for_review(rubric_version_id, threshold)
+        return self.db.get_chunks_for_review(
+            rubric_version_id, threshold, document_id
+        )
 
     def submit_review(
         self,
@@ -125,8 +131,113 @@ class LabelManager:
     def get_labeling_summary(self, rubric_version_id: int) -> dict:
         return self.db.get_labeling_summary(rubric_version_id)
 
-    def get_unlabeled_chunks(self, rubric_version_id: int) -> list[Chunk]:
-        return self.db.get_unlabeled_chunks(rubric_version_id)
+    def get_unlabeled_chunks(
+        self, rubric_version_id: int, document_id: int | None = None
+    ) -> list[Chunk]:
+        return self.db.get_unlabeled_chunks(rubric_version_id, document_id)
+
+    def _build_classification_text(self, chunk: Chunk) -> str:
+        """Compose chunk text with section_path context for classification.
+
+        The provider only ever sees a string; section_path stays out of the
+        provider contract and out of stored chunk.text.
+        """
+        if not chunk.section_path:
+            return chunk.text
+        section = " > ".join(chunk.section_path)
+        return f"[Section: {section}]\n\n{chunk.text}"
+
+    def delete_label(self, label_id: int) -> None:
+        """Discard a single label so its chunk re-enters the unlabeled pool."""
+        self.db.delete_label(label_id)
+
+    def clear_labels(self, rubric_version_id: int) -> int:
+        """Delete all labels for a rubric version. Returns the number deleted."""
+        return self.db.delete_labels_for_rubric(rubric_version_id)
+
+    def clear_labels_for_document(self, document_id: int) -> int:
+        """Delete all labels (any rubric version) for a single document."""
+        return self.db.delete_labels_for_document(document_id)
+
+    def get_category_coverage(self, rubric_version_id: int) -> list[dict]:
+        """Per-category corpus health stats for the rubric coverage view.
+
+        Returns one dict per category in the rubric:
+            name, count, avg_confidence, doc_count, disagree_pct, review_count
+        """
+        rubric = self.db.get_rubric(rubric_version_id)
+        if rubric is None:
+            return []
+
+        labels = self.db.get_all_labels(rubric_version_id)
+
+        stats: dict[str, dict] = {}
+
+        def _slot(name: str) -> dict:
+            if name not in stats:
+                stats[name] = {
+                    "count": 0,
+                    "confidence_sum": 0.0,
+                    "doc_ids": set(),
+                    "review_count": 0,
+                    "correct_count": 0,
+                }
+            return stats[name]
+
+        for cat in rubric.categories:
+            _slot(cat.name)
+
+        for label in labels:
+            chunk = self.db.get_chunk(label.chunk_id)
+            if chunk is None:
+                continue
+            reviews = self.db.get_reviews_for_label(label.id or 0)
+            review = reviews[-1] if reviews else None
+            for cat_name in label.predicted_categories or []:
+                slot = _slot(cat_name)
+                slot["count"] += 1
+                slot["confidence_sum"] += label.composite_confidence or 0.0
+                slot["doc_ids"].add(chunk.document_id)
+                if review:
+                    slot["review_count"] += 1
+                    if review.action == "correct":
+                        slot["correct_count"] += 1
+
+        result: list[dict] = []
+        seen = set()
+
+        def _build_entry(name: str, in_rubric: bool) -> dict:
+            s = stats.get(name) or {
+                "count": 0,
+                "confidence_sum": 0.0,
+                "doc_ids": set(),
+                "review_count": 0,
+                "correct_count": 0,
+            }
+            count = s["count"]
+            return {
+                "name": name,
+                "in_rubric": in_rubric,
+                "count": count,
+                "avg_confidence": s["confidence_sum"] / count if count else 0.0,
+                "doc_count": len(s["doc_ids"]),
+                "review_count": s["review_count"],
+                "disagree_pct": (
+                    s["correct_count"] / s["review_count"] if s["review_count"] else 0.0
+                ),
+            }
+
+        for cat in rubric.categories:
+            result.append(_build_entry(cat.name, in_rubric=True))
+            seen.add(cat.name)
+
+        # Stragglers: labels whose category isn't in the current rubric
+        # (e.g. labeled under a previous version). Surface them so the user notices.
+        for name in stats:
+            if name not in seen:
+                result.append(_build_entry(name, in_rubric=False))
+
+        return result
 
     def _compute_knn_agreement(
         self, chunk_text: str, predicted: list[str], rubric: Rubric

@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 class ChunkingWorker(QThread):
     """Background thread for chunking a document."""
 
-    finished = pyqtSignal(int)  # run_id
+    progress = pyqtSignal(int, int)  # current, total (e.g. LLM window 2 of 4)
+    finished_with_run = pyqtSignal(int)  # run_id
     error = pyqtSignal(str)
 
     def __init__(
@@ -28,13 +29,17 @@ class ChunkingWorker(QThread):
         self.chunk_manager = chunk_manager
         self.document_id = document_id
         self.strategy = strategy
-        self.params = params
+        self.params = dict(params)
+        self.params["_progress_callback"] = self._emit_progress
+
+    def _emit_progress(self, current: int, total: int) -> None:
+        self.progress.emit(current, total)
 
     def run(self) -> None:
         try:
             run = self.chunk_manager.run_chunking(
                 self.document_id, self.strategy, self.params
             )
-            self.finished.emit(run.id or 0)
+            self.finished_with_run.emit(run.id or 0)
         except Exception as e:
             self.error.emit(str(e))

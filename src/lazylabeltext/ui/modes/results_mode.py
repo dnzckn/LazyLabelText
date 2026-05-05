@@ -189,6 +189,7 @@ class ResultsModeWidget(BaseMode):
             chunk = self.ctx.database.get_chunk(label.chunk_id)
             doc = self.ctx.database.get_document(chunk.document_id) if chunk else None
             reviews = self.ctx.database.get_reviews_for_label(label.id or 0)
+            review = reviews[-1] if reviews else None
 
             # Text preview
             text = (
@@ -198,45 +199,64 @@ class ResultsModeWidget(BaseMode):
             )
             self.table.setItem(row, 0, QTableWidgetItem(text))
 
-            # Document
+            # Document — store doc_id on the item so filtering can match by id
             doc_name = doc.filename if doc else "?"
-            self.table.setItem(row, 1, QTableWidgetItem(doc_name))
+            doc_item = QTableWidgetItem(doc_name)
+            if doc and doc.id is not None:
+                doc_item.setData(Qt.ItemDataRole.UserRole, doc.id)
+            self.table.setItem(row, 1, doc_item)
 
-            # Category
-            cats = ", ".join(label.predicted_categories)
+            # Category — prefer the human-corrected categories when present
+            if review and review.final_categories:
+                cats = ", ".join(review.final_categories)
+            else:
+                cats = ", ".join(label.predicted_categories)
             self.table.setItem(row, 2, QTableWidgetItem(cats))
 
-            # Confidence
-            conf_item = QTableWidgetItem(f"{label.composite_confidence:.0%}")
-            self.table.setItem(row, 3, conf_item)
+            # Confidence — human review trumps LLM confidence with implicit 1.0
+            if review and review.action in ("accept", "correct"):
+                conf_text = "100%"
+            else:
+                conf_text = f"{label.composite_confidence:.0%}"
+            self.table.setItem(row, 3, QTableWidgetItem(conf_text))
 
             # Status
-            status = reviews[-1].action if reviews else "unreviewed"
+            status = review.action if review else "unreviewed"
             self.table.setItem(row, 4, QTableWidgetItem(status))
 
     def _apply_filters(self) -> None:
         """Filter table rows based on current filter selections."""
-        doc_filter = self.doc_filter.currentData()
+        doc_filter_id = self.doc_filter.currentData()  # int doc_id or None
         cat_filter = self.cat_filter.currentText()
         status_filter = self.status_filter.currentText()
+
+        # Map UI status labels to the action strings stored in human_reviews.
+        status_map = {
+            "Accepted": "accept",
+            "Flagged": "flag",
+            "Unreviewed": "unreviewed",
+        }
 
         for row in range(self.table.rowCount()):
             show = True
 
-            if doc_filter is not None:
+            if doc_filter_id is not None:
                 doc_item = self.table.item(row, 1)
-                if doc_item and doc_filter != self.table.item(row, 1).text():
-                    # Simple text match for now
-                    pass
+                row_doc_id = (
+                    doc_item.data(Qt.ItemDataRole.UserRole) if doc_item else None
+                )
+                if row_doc_id != doc_filter_id:
+                    show = False
 
-            if cat_filter != "All Categories":
+            if show and cat_filter != "All Categories":
                 cat_item = self.table.item(row, 2)
                 if cat_item and cat_filter not in cat_item.text():
                     show = False
 
-            if status_filter != "All Status":
+            if show and status_filter != "All Status":
+                expected = status_map.get(status_filter, status_filter.lower())
                 status_item = self.table.item(row, 4)
-                if status_item and status_item.text().lower() != status_filter.lower():
+                if status_item and status_item.text().lower() != expected.lower():
                     show = False
 
             self.table.setRowHidden(row, not show)

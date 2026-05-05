@@ -1,4 +1,4 @@
-"""Rubric mode: structured category editor with live label preview."""
+"""Rubric mode: structured category editor with corpus-wide coverage map."""
 
 from __future__ import annotations
 
@@ -6,21 +6,25 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
     QScrollArea,
     QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from lazylabeltext.core.models import Category
 from lazylabeltext.ui.modes.base_mode import BaseMode
-from lazylabeltext.ui.widgets.confidence_bar import ConfidenceBar
 from lazylabeltext.ui.widgets.rubric_category_card import RubricCategoryCard
 
 if TYPE_CHECKING:
@@ -31,7 +35,7 @@ logger = logging.getLogger("lazylabeltext")
 
 
 class RubricModeWidget(BaseMode):
-    """Smart rubric editor with live preview of label predictions."""
+    """Rubric editor with a sandbox area that classifies sample chunks using the in-memory rubric."""
 
     def __init__(
         self,
@@ -41,10 +45,6 @@ class RubricModeWidget(BaseMode):
     ) -> None:
         super().__init__(context, parent)
         self.main_window = main_window
-        self._preview_timer = QTimer(self)
-        self._preview_timer.setSingleShot(True)
-        self._preview_timer.setInterval(1500)
-        self._preview_timer.timeout.connect(self._run_preview)
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -105,35 +105,65 @@ class RubricModeWidget(BaseMode):
 
         splitter.addWidget(left)
 
-        # Right: live preview
+        # Right: corpus-wide coverage map for the active rubric
         right = QWidget()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(4, 4, 8, 4)
 
-        right_header = QLabel("Live Preview")
-        right_header.setObjectName("sectionHeader")
-        right_layout.addWidget(right_header)
+        coverage_header_row = QHBoxLayout()
+        self.coverage_header = QLabel("Coverage")
+        self.coverage_header.setObjectName("sectionHeader")
+        coverage_header_row.addWidget(self.coverage_header)
+        coverage_header_row.addStretch()
+        self.coverage_refresh_btn = QPushButton("Refresh")
+        self.coverage_refresh_btn.clicked.connect(self._refresh_coverage)
+        coverage_header_row.addWidget(self.coverage_refresh_btn)
+        right_layout.addLayout(coverage_header_row)
 
-        self.preview_info = QLabel(
-            "Edit the rubric to see how chunks would be labeled."
+        self.coverage_status_label = QLabel(
+            "Per-category corpus health for the saved rubric. "
+            "Refreshes when you switch to this tab or click Refresh."
         )
-        self.preview_info.setStyleSheet("color: #888; font-size: 11px;")
-        self.preview_info.setWordWrap(True)
-        right_layout.addWidget(self.preview_info)
+        self.coverage_status_label.setStyleSheet("color: #888; font-size: 11px;")
+        self.coverage_status_label.setWordWrap(True)
+        right_layout.addWidget(self.coverage_status_label)
 
-        self.preview_scroll = QScrollArea()
-        self.preview_scroll.setWidgetResizable(True)
-        self.preview_container = QWidget()
-        self.preview_layout = QVBoxLayout(self.preview_container)
-        self.preview_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.preview_layout.setSpacing(6)
-        self.preview_scroll.setWidget(self.preview_container)
-        right_layout.addWidget(self.preview_scroll, 1)
+        self.coverage_table = QTableWidget()
+        self.coverage_table.setColumnCount(5)
+        self.coverage_table.setHorizontalHeaderLabels(
+            ["Category", "Count", "Avg Conf", "Docs", "Disagree %"]
+        )
+        self.coverage_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
+        )
+        for i in range(1, 5):
+            self.coverage_table.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.ResizeMode.ResizeToContents
+            )
+        self.coverage_table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
+        self.coverage_table.setSelectionMode(
+            QTableWidget.SelectionMode.SingleSelection
+        )
+        self.coverage_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.coverage_table.currentCellChanged.connect(self._on_coverage_row_selected)
+        right_layout.addWidget(self.coverage_table, 1)
+
+        self.coverage_detail = QTextEdit()
+        self.coverage_detail.setReadOnly(True)
+        self.coverage_detail.setMaximumHeight(180)
+        self.coverage_detail.setPlaceholderText(
+            "Select a category to see its definition and any health flags."
+        )
+        right_layout.addWidget(self.coverage_detail)
 
         splitter.addWidget(right)
-        splitter.setSizes([400, 400])
+        splitter.setSizes([400, 500])
 
         layout.addWidget(splitter, 1)
+
+        self._coverage_rows: list[dict] = []
 
     def activate(self) -> None:
         """Load current rubric into editor."""
@@ -149,6 +179,8 @@ class RubricModeWidget(BaseMode):
                 self._add_category_card(cat)
         else:
             self.version_label.setText("No rubric")
+
+        self._refresh_coverage()
 
     def _add_category(self) -> None:
         self._add_category_card(Category(name="", definition=""))
@@ -181,80 +213,173 @@ class RubricModeWidget(BaseMode):
         return categories
 
     def _on_rubric_changed(self) -> None:
-        """Debounced handler for any rubric edit."""
-        self._preview_timer.start()
+        """Edits don't affect coverage (which reflects saved rubric + labels)."""
+        return
 
-    def _run_preview(self) -> None:
-        """Re-classify sample chunks against the current rubric state."""
-        categories = self._get_categories()
-        if not categories:
+    # --- Coverage map ----------------------------------------------------
+
+    def _refresh_coverage(self) -> None:
+        if self.ctx.label_manager is None or self.ctx.rubric_manager is None:
+            self._coverage_rows = []
+            self.coverage_table.setRowCount(0)
+            self.coverage_status_label.setText("Open a project first.")
             return
 
-        # Clear old preview
-        while self.preview_layout.count():
-            child = self.preview_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        rubric = self.ctx.rubric_manager.get_active_rubric()
+        if rubric is None:
+            self._coverage_rows = []
+            self.coverage_table.setRowCount(0)
+            self.coverage_status_label.setText("Save a rubric first.")
+            return
 
-        # Get sample chunks from current document
-        doc_id = self.ctx.get_ui_state("selected_document_id")
-        if doc_id is None or self.ctx.chunk_manager is None:
-            self.preview_info.setText(
-                "Select a document and create chunks to see live preview."
+        rows = self.ctx.label_manager.get_category_coverage(rubric.id)
+        self._coverage_rows = rows
+        self.coverage_table.setRowCount(len(rows))
+
+        total_labels = sum(r["count"] for r in rows)
+        no_labels_yet = total_labels == 0
+
+        warn_dead = 0
+        warn_fuzzy = 0
+        warn_disagree = 0
+        warn_orphan = 0
+
+        for i, r in enumerate(rows):
+            name = r["name"]
+            count = r["count"]
+            avg_conf = r["avg_confidence"]
+            docs = r["doc_count"]
+            disagree = r["disagree_pct"]
+
+            name_item = QTableWidgetItem(name + ("" if r["in_rubric"] else "  (orphan)"))
+            count_item = QTableWidgetItem(str(count))
+            conf_item = QTableWidgetItem(f"{avg_conf:.0%}" if count else "—")
+            docs_item = QTableWidgetItem(str(docs))
+            dis_item = QTableWidgetItem(
+                f"{disagree:.0%}" if r["review_count"] else "—"
             )
-            return
 
-        chunks = self.ctx.chunk_manager.get_chunks(doc_id)
-        if not chunks:
-            self.preview_info.setText("No chunks found. Switch to Chunk mode first.")
-            return
-
-        # Show preview for up to 5 chunks
-        sample = chunks[:5]
-        self.preview_info.setText(
-            f"Showing {len(sample)} of {len(chunks)} chunks. "
-            "Labels update as you edit the rubric."
-        )
-
-        if self.ctx.llm_provider is not None:
-            # Use LLM for live preview
-            for chunk in sample:
-                try:
-                    result = self.ctx.llm_provider.classify(chunk.text, categories)
-                    self._add_preview_chunk(
-                        chunk.text, result.categories, result.confidence_per_category
+            # Health colouring per row.
+            color: QColor | None = None
+            flags: list[str] = []
+            if not r["in_rubric"]:
+                color = QColor(160, 160, 160)
+                flags.append("orphan (not in active rubric)")
+                warn_orphan += 1
+            elif count == 0:
+                # Pre-labeling: don't flag as "dead", just show as not-yet-used.
+                if no_labels_yet:
+                    color = QColor(160, 160, 160)
+                else:
+                    color = QColor(220, 120, 120)
+                    flags.append("dead — no chunks labeled with this category")
+                    warn_dead += 1
+            else:
+                if avg_conf < 0.6:
+                    color = QColor(220, 200, 120)
+                    flags.append(f"avg confidence is low ({avg_conf:.0%})")
+                    warn_fuzzy += 1
+                if r["review_count"] >= 3 and disagree >= 0.3:
+                    color = QColor(220, 200, 120)
+                    flags.append(
+                        f"humans corrected {disagree:.0%} of reviews "
+                        f"({r['review_count']} sampled)"
                     )
-                except Exception:
-                    self._add_preview_chunk(chunk.text, ["(error)"], {})
+                    warn_disagree += 1
+
+            if color is not None:
+                brush = QBrush(color)
+                for it in (name_item, count_item, conf_item, docs_item, dis_item):
+                    it.setForeground(brush)
+
+            # Stash flags + the category itself for the detail panel.
+            name_item.setData(Qt.ItemDataRole.UserRole, flags)
+
+            self.coverage_table.setItem(i, 0, name_item)
+            self.coverage_table.setItem(i, 1, count_item)
+            self.coverage_table.setItem(i, 2, conf_item)
+            self.coverage_table.setItem(i, 3, docs_item)
+            self.coverage_table.setItem(i, 4, dis_item)
+
+        # Header status with summary.
+        if no_labels_yet:
+            self.coverage_status_label.setText(
+                f"Saved: v{rubric.version}  ·  No labels yet — run labeling on the Label "
+                "tab to populate coverage stats. Definitions are shown below for review."
+            )
         else:
-            # No LLM: just show chunks without labels
-            for chunk in sample:
-                self._add_preview_chunk(chunk.text, ["(no LLM configured)"], {})
+            bits: list[str] = [
+                f"Saved: v{rubric.version}",
+                f"{total_labels} labels across {len(rows)} categories",
+            ]
+            if warn_dead:
+                bits.append(f"{warn_dead} dead")
+            if warn_fuzzy:
+                bits.append(f"{warn_fuzzy} low-confidence")
+            if warn_disagree:
+                bits.append(f"{warn_disagree} high-disagreement")
+            if warn_orphan:
+                bits.append(f"{warn_orphan} orphan")
+            if not (warn_dead or warn_fuzzy or warn_disagree or warn_orphan):
+                bits.append("all categories look healthy")
+            self.coverage_status_label.setText("  ·  ".join(bits))
 
-    def _add_preview_chunk(
-        self, text: str, categories: list[str], confidence: dict[str, float]
-    ) -> None:
-        card = QWidget()
-        card.setObjectName("chunkCard")
-        card.setStyleSheet("QWidget#chunkCard { border-radius: 4px; padding: 6px; }")
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(8, 6, 8, 6)
-        card_layout.setSpacing(4)
+        if self._coverage_rows and self.coverage_table.currentRow() < 0:
+            self.coverage_table.selectRow(0)
 
-        # Truncated text
-        preview = text[:150] + "..." if len(text) > 150 else text
-        text_label = QLabel(preview)
-        text_label.setWordWrap(True)
-        text_label.setStyleSheet("font-size: 11px;")
-        card_layout.addWidget(text_label)
+    def _on_coverage_row_selected(self, row: int, *_args) -> None:
+        if row < 0 or row >= len(self._coverage_rows):
+            self.coverage_detail.clear()
+            return
 
-        # Labels with confidence bars
-        for cat in categories:
-            conf = confidence.get(cat, 0.0)
-            bar = ConfidenceBar(value=conf, label=cat)
-            card_layout.addWidget(bar)
+        entry = self._coverage_rows[row]
+        rubric = (
+            self.ctx.rubric_manager.get_active_rubric()
+            if self.ctx.rubric_manager
+            else None
+        )
+        cat: Category | None = None
+        if rubric:
+            for c in rubric.categories:
+                if c.name == entry["name"]:
+                    cat = c
+                    break
 
-        self.preview_layout.addWidget(card)
+        flags = self.coverage_table.item(row, 0).data(Qt.ItemDataRole.UserRole) or []
+
+        lines: list[str] = [f"Category: {entry['name']}"]
+        if not entry["in_rubric"]:
+            lines.append("(orphan: this category appears on labels but is not in the active rubric)")
+        lines.append("")
+        lines.append(
+            f"Count: {entry['count']}   "
+            f"Docs: {entry['doc_count']}   "
+            f"Avg confidence: {entry['avg_confidence']:.0%} "
+            f"   Reviews: {entry['review_count']}   "
+            f"Disagree: {entry['disagree_pct']:.0%}"
+        )
+        if flags:
+            lines.append("")
+            lines.append("Flags:")
+            for f in flags:
+                lines.append(f"  • {f}")
+
+        if cat:
+            lines.append("")
+            lines.append("Definition:")
+            lines.append(f"  {cat.definition or '(empty)'}")
+            if cat.exemplars:
+                lines.append(f"Exemplars ({len(cat.exemplars)}):")
+                for ex in cat.exemplars[:3]:
+                    snippet = ex if len(ex) <= 120 else ex[:120] + "…"
+                    lines.append(f"  • {snippet}")
+            if cat.boundary_cases:
+                lines.append(f"Boundary cases ({len(cat.boundary_cases)}):")
+                for bc in cat.boundary_cases[:3]:
+                    snippet = bc if len(bc) <= 120 else bc[:120] + "…"
+                    lines.append(f"  • {snippet}")
+
+        self.coverage_detail.setPlainText("\n".join(lines))
 
     def _save_rubric(self) -> None:
         if self.ctx.rubric_manager is None:
@@ -281,7 +406,8 @@ class RubricModeWidget(BaseMode):
             self.version_label.setText(f"v{new_rubric.version}")
             self.main_window.right_panel.update_rubric(new_rubric)
             self.main_window.notification_manager.show_success(
-                f"Rubric saved (v{new_rubric.version})"
+                f"Rubric saved (v{new_rubric.version}). "
+                "Existing labels still reflect prior versions — re-run labeling to apply."
             )
 
             if self.ctx.audit_manager:
@@ -292,6 +418,7 @@ class RubricModeWidget(BaseMode):
                         "categories": len(categories),
                     },
                 )
+            self._refresh_coverage()
         except Exception as e:
             self.main_window.notification_manager.show_error(str(e))
 
@@ -310,12 +437,36 @@ class RubricModeWidget(BaseMode):
                 return
 
             categories = self.ctx.rubric_manager.parse_categories_json(json_str)
+
+            existing = self.ctx.rubric_manager.get_active_rubric()
+            if existing:
+                new_rubric = self.ctx.rubric_manager.update_rubric(
+                    existing.id, categories
+                )
+            else:
+                new_rubric = self.ctx.rubric_manager.create_rubric(
+                    "Imported", categories
+                )
+
             self._clear_cards()
-            for cat in categories:
+            for cat in new_rubric.categories:
                 self._add_category_card(cat)
+
+            self.version_label.setText(f"v{new_rubric.version}")
+            self.main_window.right_panel.update_rubric(new_rubric)
             self.main_window.notification_manager.show_success(
-                f"Imported {len(categories)} categories"
+                f"Imported {len(categories)} categories (v{new_rubric.version})"
             )
+            self._refresh_coverage()
+
+            if self.ctx.audit_manager:
+                self.ctx.audit_manager.log_event(
+                    "rubric_imported",
+                    payload={
+                        "version": new_rubric.version,
+                        "categories": len(categories),
+                    },
+                )
         except Exception as e:
             self.main_window.notification_manager.show_error(f"Import failed: {e}")
 

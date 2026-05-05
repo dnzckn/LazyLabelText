@@ -37,6 +37,8 @@ Thumbs.db
 
 # Project data
 *.db
+*.db-shm
+*.db-wal
 *.parquet
 
 # Model files

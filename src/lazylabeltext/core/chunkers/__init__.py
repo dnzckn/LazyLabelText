@@ -37,3 +37,6 @@ def available_strategies() -> list[str]:
 
 # Import submodules to trigger registration
 from lazylabeltext.core.chunkers import structural_chunker  # noqa: E402, F401
+from lazylabeltext.core.chunkers import semantic_chunker  # noqa: E402, F401
+from lazylabeltext.core.chunkers import hybrid_chunker  # noqa: E402, F401
+from lazylabeltext.core.chunkers import llm_chunker  # noqa: E402, F401

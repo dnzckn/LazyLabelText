@@ -22,6 +22,7 @@ class LeftPanel(QWidget):
     document_selected = pyqtSignal(int)  # doc_id
     open_folder_requested = pyqtSignal()
     add_documents_requested = pyqtSignal()
+    reset_project_requested = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -69,6 +70,16 @@ class LeftPanel(QWidget):
         self.count_label = QLabel("0 documents")
         self.count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.count_label)
+
+        # Reset project (destructive — wipes project.db)
+        self.reset_btn = QPushButton("Reset Project")
+        self.reset_btn.setObjectName("dangerButton")
+        self.reset_btn.setToolTip(
+            "Delete project.db: every chunk, label, review, and audit event. "
+            "The source documents on disk are kept."
+        )
+        self.reset_btn.clicked.connect(self.reset_project_requested.emit)
+        layout.addWidget(self.reset_btn)
 
     def populate(self, documents: list) -> None:
         """Populate tree from list of ConvertedDocument."""

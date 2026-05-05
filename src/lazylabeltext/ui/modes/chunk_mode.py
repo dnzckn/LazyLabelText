@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 
 from lazylabeltext.core.chunkers import available_strategies
 from lazylabeltext.ui.modes.base_mode import BaseMode
+from lazylabeltext.ui.workers.chunking_worker import ChunkingWorker
 
 if TYPE_CHECKING:
     from lazylabeltext.core.app_context import AppContext
@@ -55,6 +56,7 @@ class ChunkModeWidget(BaseMode):
         self.main_window = main_window
         self._current_doc_id: int | None = None
         self._current_run_id: int | None = None
+        self._chunking_worker: ChunkingWorker | None = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -147,6 +149,27 @@ class ChunkModeWidget(BaseMode):
             self.heading_checks[level] = cb
         right_layout.addLayout(heading_row)
 
+        # Similarity threshold (semantic / hybrid only)
+        self.similarity_label_header = QLabel(
+            "Similarity threshold (semantic/hybrid):"
+        )
+        right_layout.addWidget(self.similarity_label_header)
+        self.similarity_slider = QSlider(Qt.Orientation.Horizontal)
+        self.similarity_slider.setRange(10, 90)  # 0.10 - 0.90
+        self.similarity_slider.setValue(50)
+        self.similarity_label = QLabel("0.50")
+        self.similarity_slider.valueChanged.connect(
+            lambda v: self.similarity_label.setText(f"{v / 100:.2f}")
+        )
+        sim_row = QHBoxLayout()
+        sim_row.addWidget(self.similarity_slider)
+        sim_row.addWidget(self.similarity_label)
+        right_layout.addLayout(sim_row)
+        self._update_similarity_visibility(self.strategy_combo.currentText())
+        self.strategy_combo.currentTextChanged.connect(
+            self._update_similarity_visibility
+        )
+
         # Chunk button
         self.chunk_btn = QPushButton("Run Chunking")
         self.chunk_btn.setObjectName("accentButton")
@@ -176,27 +199,67 @@ class ChunkModeWidget(BaseMode):
             "min_tokens": self.min_slider.value(),
             "max_tokens": self.max_slider.value(),
             "heading_split_levels": levels,
+            "similarity_threshold": self.similarity_slider.value() / 100.0,
         }
+
+    def _update_similarity_visibility(self, strategy: str) -> None:
+        needs_threshold = strategy in ("semantic", "hybrid")
+        self.similarity_label_header.setVisible(needs_threshold)
+        self.similarity_slider.setVisible(needs_threshold)
+        self.similarity_label.setVisible(needs_threshold)
 
     def _run_chunking(self) -> None:
         if self._current_doc_id is None or self.ctx.chunk_manager is None:
+            return
+        if self._chunking_worker is not None and self._chunking_worker.isRunning():
             return
 
         strategy = self.strategy_combo.currentText()
         params = self._get_params()
 
-        try:
-            run = self.ctx.chunk_manager.run_chunking(
-                self._current_doc_id, strategy, params
-            )
-            self._current_run_id = run.id
-            self._show_chunks_for_run(run.id)
+        self.chunk_btn.setEnabled(False)
+        self.stats_label.setText(f"Chunking with '{strategy}'...")
+
+        worker = ChunkingWorker(
+            self.ctx.chunk_manager,
+            self._current_doc_id,
+            strategy,
+            params,
+            parent=self,
+        )
+        worker.progress.connect(self._on_chunking_progress)
+        worker.finished_with_run.connect(self._on_chunking_finished)
+        worker.error.connect(self._on_chunking_error)
+        self._chunking_worker = worker
+        worker.start()
+
+    def _on_chunking_progress(self, current: int, total: int) -> None:
+        self.stats_label.setText(f"Chunking... ({current}/{total} windows)")
+
+    def _on_chunking_finished(self, run_id: int) -> None:
+        self._current_run_id = run_id if run_id else None
+        self.chunk_btn.setEnabled(True)
+        self._chunking_worker = None
+        if run_id:
+            self._show_chunks_for_run(run_id)
             self.main_window._update_stats()
+            try:
+                runs = self.ctx.chunk_manager.get_chunking_runs(
+                    self._current_doc_id or 0
+                )
+                latest = runs[-1] if runs else None
+                n = latest.n_chunks if latest else 0
+            except Exception:
+                n = 0
             self.main_window.notification_manager.show_success(
-                f"Created {run.n_chunks} chunks"
+                f"Created {n} chunks"
             )
-        except Exception as e:
-            self.main_window.notification_manager.show_error(f"Chunking failed: {e}")
+
+    def _on_chunking_error(self, msg: str) -> None:
+        self.chunk_btn.setEnabled(True)
+        self._chunking_worker = None
+        self.stats_label.setText("Chunking failed.")
+        self.main_window.notification_manager.show_error(f"Chunking failed: {msg}")
 
     def _show_existing_chunks(self) -> None:
         """Show chunks for the currently selected document."""

@@ -42,6 +42,8 @@ class LLMProviderProtocol(Protocol):
         self, chunk_text: str, categories: list[Category]
     ) -> ClassificationResult: ...
 
+    def complete(self, prompt: str, max_tokens: int = 4096) -> str: ...
+
 
 @runtime_checkable
 class EmbeddingProviderProtocol(Protocol):

@@ -27,7 +27,7 @@ class Database:
 
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = str(db_path)
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
@@ -331,6 +331,33 @@ class Database:
         self.conn.execute("DELETE FROM chunks WHERE chunking_run_id = ?", (run_id,))
         self.conn.commit()
 
+    def delete_all_chunking_for_document(self, document_id: int) -> None:
+        """Delete every chunking run, chunk, label, and review for a document.
+
+        Used when re-chunking: prior chunks are not retained.
+        """
+        self.conn.execute(
+            """DELETE FROM human_reviews
+               WHERE label_id IN (
+                   SELECT l.id FROM labels l
+                   JOIN chunks c ON l.chunk_id = c.id
+                   WHERE c.document_id = ?
+               )""",
+            (document_id,),
+        )
+        self.conn.execute(
+            """DELETE FROM labels
+               WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ?)""",
+            (document_id,),
+        )
+        self.conn.execute(
+            "DELETE FROM chunks WHERE document_id = ?", (document_id,)
+        )
+        self.conn.execute(
+            "DELETE FROM chunking_runs WHERE document_id = ?", (document_id,)
+        )
+        self.conn.commit()
+
     def _row_to_chunk(self, row: sqlite3.Row) -> Chunk:
         override = row["manual_override_json"]
         return Chunk(
@@ -388,22 +415,91 @@ class Database:
             rows = self.conn.execute("SELECT * FROM labels").fetchall()
         return [self._row_to_label(r) for r in rows]
 
-    def get_unlabeled_chunks(self, rubric_version_id: int) -> list[Chunk]:
-        rows = self.conn.execute(
-            """SELECT c.* FROM chunks c
-               WHERE c.id NOT IN (
-                   SELECT chunk_id FROM labels WHERE rubric_version_id = ?
-               )
-               ORDER BY c.char_start""",
+    def delete_label(self, label_id: int) -> None:
+        """Delete a label and any human_reviews referencing it."""
+        self.conn.execute(
+            "DELETE FROM human_reviews WHERE label_id = ?", (label_id,)
+        )
+        self.conn.execute("DELETE FROM labels WHERE id = ?", (label_id,))
+        self.conn.commit()
+
+    def delete_labels_for_document(self, document_id: int) -> int:
+        """Delete every label (and its reviews) for chunks of this document."""
+        self.conn.execute(
+            """DELETE FROM human_reviews
+               WHERE label_id IN (
+                   SELECT l.id FROM labels l
+                   JOIN chunks c ON l.chunk_id = c.id
+                   WHERE c.document_id = ?
+               )""",
+            (document_id,),
+        )
+        cur = self.conn.execute(
+            """DELETE FROM labels
+               WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ?)""",
+            (document_id,),
+        )
+        count = cur.rowcount
+        self.conn.commit()
+        return count
+
+    def delete_labels_for_rubric(self, rubric_version_id: int) -> int:
+        """Delete all labels (and their reviews) for a rubric version. Returns count."""
+        self.conn.execute(
+            """DELETE FROM human_reviews
+               WHERE label_id IN (
+                   SELECT id FROM labels WHERE rubric_version_id = ?
+               )""",
             (rubric_version_id,),
+        )
+        cur = self.conn.execute(
+            "DELETE FROM labels WHERE rubric_version_id = ?",
+            (rubric_version_id,),
+        )
+        count = cur.rowcount
+        self.conn.commit()
+        return count
+
+    def get_unlabeled_chunks(
+        self, rubric_version_id: int, document_id: int | None = None
+    ) -> list[Chunk]:
+        """Unlabeled chunks from the latest chunking run per document.
+
+        If document_id is given, restrict to that single document.
+        """
+        params: tuple = (rubric_version_id,)
+        doc_filter = ""
+        if document_id is not None:
+            doc_filter = " AND c.document_id = ?"
+            params = (rubric_version_id, document_id)
+
+        rows = self.conn.execute(
+            f"""SELECT c.* FROM chunks c
+               WHERE c.chunking_run_id IN (
+                   SELECT MAX(id) FROM chunking_runs GROUP BY document_id
+               )
+                 AND c.id NOT IN (
+                   SELECT chunk_id FROM labels WHERE rubric_version_id = ?
+                 )
+                 {doc_filter}
+               ORDER BY c.char_start""",
+            params,
         ).fetchall()
         return [self._row_to_chunk(r) for r in rows]
 
     def get_chunks_for_review(
-        self, rubric_version_id: int, threshold: float
+        self,
+        rubric_version_id: int,
+        threshold: float,
+        document_id: int | None = None,
     ) -> list[tuple[Chunk, Label]]:
+        params: tuple = (rubric_version_id, threshold)
+        doc_filter = ""
+        if document_id is not None:
+            doc_filter = " AND c.document_id = ?"
+            params = (rubric_version_id, threshold, document_id)
         rows = self.conn.execute(
-            """SELECT c.*, l.id as l_id, l.chunk_id as l_chunk_id,
+            f"""SELECT c.*, l.id as l_id, l.chunk_id as l_chunk_id,
                       l.rubric_version_id as l_rubric_version_id,
                       l.predicted_categories_json, l.confidence_json,
                       l.rationale as l_rationale, l.knn_agreement,
@@ -413,9 +509,13 @@ class Database:
                JOIN labels l ON c.id = l.chunk_id
                WHERE l.rubric_version_id = ?
                  AND l.composite_confidence <= ?
+                 AND c.chunking_run_id IN (
+                     SELECT MAX(id) FROM chunking_runs GROUP BY document_id
+                 )
                  AND l.id NOT IN (SELECT label_id FROM human_reviews)
+                 {doc_filter}
                ORDER BY l.composite_confidence ASC""",
-            (rubric_version_id, threshold),
+            params,
         ).fetchall()
         results = []
         for r in rows:
