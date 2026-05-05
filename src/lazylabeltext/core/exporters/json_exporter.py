@@ -88,6 +88,8 @@ class JSONExporter:
                 embedding_rows.append(
                     {
                         "chunk_id": chunk.id,
+                        "document_id": chunk.document_id or 0,
+                        "document_filename": doc.filename if doc else "",
                         "embedding": chunk.embedding,
                         "embedding_model": chunk.embedding_model or "",
                     }
@@ -127,7 +129,13 @@ class JSONExporter:
                     "rows": len(embedding_rows),
                     "dim": embedding_dim,
                     "models": sorted(embedding_model_seen),
-                    "join_key": "chunk_id",
+                    "join_keys": ["chunk_id", "document_id"],
+                    "join_key_note": (
+                        "chunk_id is unique within this export (AUTOINCREMENT "
+                        "primary key). When merging exports across projects, "
+                        "join on (document_filename, chunk_id) or prefix "
+                        "chunk_id with a project namespace."
+                    ),
                     "format": "parquet",
                 }
 
@@ -203,6 +211,8 @@ class JSONExporter:
             table = pa.table(
                 {
                     "chunk_id": [r["chunk_id"] for r in rows],
+                    "document_id": [r["document_id"] for r in rows],
+                    "document_filename": [r["document_filename"] for r in rows],
                     "embedding": [r["embedding"] for r in rows],
                     "embedding_model": [r["embedding_model"] for r in rows],
                 }
