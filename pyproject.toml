@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazylabeltext"
-version = "0.1.22"
+version = "0.1.23"
 description = "A desktop tool for zero-shot chunk classification with LLMs, with built-in multi-strategy chunking."
 readme = "README.md"
 license = "Apache-2.0"
@@ -38,12 +38,12 @@ include-ai = [
     "openai>=1.40.0",
     "google-genai>=1.0.0",
     "langchain-openai>=0.2.0",
-    "httpx>=0.27.0",
+    "httpx[http2]>=0.27.0",
     "sentence-transformers>=3.0.0",
     "torch>=2.7.1",
     "pyarrow>=14.0.0",
 ]
-azure = ["langchain-openai>=0.2.0", "httpx>=0.27.0"]
+azure = ["langchain-openai>=0.2.0", "httpx[http2]>=0.27.0"]
 parquet = ["pyarrow>=14.0.0"]
 anthropic = ["anthropic>=0.39.0"]
 openai = ["openai>=1.40.0"]
