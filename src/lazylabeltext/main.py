@@ -28,8 +28,13 @@ def main() -> None:
     from lazylabeltext.utils.logger import setup_logging
     from lazylabeltext.utils.startup import startup_display
 
-    startup_display.show_banner()
+    # Set up logging BEFORE the banner: the banner captures stdout/stderr and
+    # rewires existing log StreamHandlers to devnull, then restores them on
+    # finish(). If logging is initialised after capture, the new StreamHandler
+    # latches onto the devnull stream and writes to a closed file once the
+    # banner releases. Initialise first so the banner can save/restore it.
     setup_logging()
+    startup_display.show_banner()
 
     startup_display.update_step(1, "Initializing application")
     from PyQt6.QtWidgets import QApplication
