@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from PyQt6.QtGui import QShowEvent
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -26,6 +27,20 @@ class ProviderSettingsDialog(QDialog):
         self.setMinimumWidth(500)
         self._setup_ui()
         self._load_from_settings()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        """Center the dialog on its parent window when first shown."""
+        super().showEvent(event)
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "geometry"):
+            try:
+                pg = parent.geometry()
+                self.move(
+                    pg.x() + (pg.width() - self.width()) // 2,
+                    pg.y() + (pg.height() - self.height()) // 2,
+                )
+            except Exception:
+                pass
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
