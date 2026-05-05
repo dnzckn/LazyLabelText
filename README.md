@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/github/license/dnzckn/LazyLabelText)](https://github.com/dnzckn/LazyLabelText/blob/main/LICENSE)
 
-LazyLabelText is a focused desktop tool for producing high-quality labeled text corpora from document collections. Sister project to [LazyLabel](https://github.com/dnzckn/LazyLabel) (image segmentation labeling) — same philosophy, different modality.
+LazyLabelText is a focused desktop tool for producing high-quality labeled text corpora from document collections.
 
 It takes a folder of source documents (PDF, Word, Markdown, plain text), helps a human + LLM team chunk them, label them against a structured rubric, and export the result as a labeled corpus ready to feed downstream systems: consolidation pipelines, RAG indexes, training data, knowledge graphs, audit corpora.
 
@@ -32,7 +32,14 @@ pip install -e ".[include-ai]"
 llt
 ```
 
-**Requirements:** Python 3.10+. Full install pulls down sentence-transformers (~90 MB embedding model on first run) and the Anthropic SDK. Set `ANTHROPIC_API_KEY` in your environment, or configure it in Provider Settings inside the app.
+**Requirements:** Python 3.10+. Configure providers via Provider Settings inside the app or via environment variables.
+
+### Supported Providers
+
+| Type | Provider | Notes |
+|---|---|---|
+| LLM | Anthropic (Claude) | API key required (`ANTHROPIC_API_KEY` or in-app) |
+| Embedding | sentence-transformers | Local, ~90 MB model downloaded on first use |
 
 ---
 
@@ -74,7 +81,6 @@ The export bundle includes a manifest with corpus statistics, the rubric used, a
 
 ## Documentation
 
-- [Project idea & design notes](LazyLabelText_idea.md) — phased roadmap, data model, open questions
 - [GitHub Issues](https://github.com/dnzckn/LazyLabelText/issues) — bug reports / feature requests
 
 ---
