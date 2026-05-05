@@ -196,7 +196,17 @@ class JSONExporter:
     def _write_parquet(
         path: str, rows: list[dict], dim: int, models: list[str]
     ) -> bool:
-        """Write embeddings to Parquet; silently skip if pyarrow isn't installed."""
+        """Write embeddings to Parquet; silently skip if pyarrow isn't installed.
+
+        Compatibility choices:
+          - snappy compression (universal — zstd breaks several JS/Electron
+            parquet viewers and older Spark builds)
+          - explicit float32 for the embedding column (half the bytes of
+            float64 and enough precision for cosine retrieval)
+          - explicit schema typing on every column so viewers don't have to
+            re-infer
+          - parquet format version 2.4 (broadest reader support)
+        """
         try:
             import pyarrow as pa
             import pyarrow.parquet as pq
@@ -208,14 +218,40 @@ class JSONExporter:
             return False
 
         try:
+            schema = pa.schema(
+                [
+                    pa.field("chunk_id", pa.int64()),
+                    pa.field("document_id", pa.int64()),
+                    pa.field("document_filename", pa.string()),
+                    pa.field("embedding", pa.list_(pa.float32())),
+                    pa.field("embedding_model", pa.string()),
+                ]
+            )
+            # Coerce embedding rows to float32 lists.
+            embedding_col = [
+                [float(x) for x in r["embedding"]] for r in rows
+            ]
             table = pa.table(
                 {
-                    "chunk_id": [r["chunk_id"] for r in rows],
-                    "document_id": [r["document_id"] for r in rows],
-                    "document_filename": [r["document_filename"] for r in rows],
-                    "embedding": [r["embedding"] for r in rows],
-                    "embedding_model": [r["embedding_model"] for r in rows],
-                }
+                    "chunk_id": pa.array(
+                        [int(r["chunk_id"]) for r in rows], type=pa.int64()
+                    ),
+                    "document_id": pa.array(
+                        [int(r["document_id"]) for r in rows], type=pa.int64()
+                    ),
+                    "document_filename": pa.array(
+                        [str(r["document_filename"]) for r in rows],
+                        type=pa.string(),
+                    ),
+                    "embedding": pa.array(
+                        embedding_col, type=pa.list_(pa.float32())
+                    ),
+                    "embedding_model": pa.array(
+                        [str(r["embedding_model"]) for r in rows],
+                        type=pa.string(),
+                    ),
+                },
+                schema=schema,
             )
             # Stamp dim + model list as schema-level metadata so consumers
             # don't have to peek at row 0 to find them.
@@ -224,7 +260,13 @@ class JSONExporter:
                 b"embedding_models": ",".join(models).encode(),
             }
             table = table.replace_schema_metadata(meta)
-            pq.write_table(table, path, compression="zstd")
+            pq.write_table(
+                table,
+                path,
+                compression="snappy",
+                version="2.4",
+                use_dictionary=["document_filename", "embedding_model"],
+            )
             return True
         except Exception as e:
             logger.warning("Failed to write Parquet sidecar: %s", e)
