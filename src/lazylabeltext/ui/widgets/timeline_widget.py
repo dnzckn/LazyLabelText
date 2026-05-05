@@ -60,6 +60,9 @@ class TimelineWidget(QWidget):
         self._confidence_scores: dict[int, float] = {}
         # Optional: per-status color override (callers register categories here).
         self._custom_colors: dict[str, QColor] = {}
+        # Per-frame human review action ("accept" / "skip" / "flag") drawn
+        # as a thin stripe under the main cell. Independent of the main color.
+        self._review_actions: dict[int, str] = {}
 
         # Display order indirection for sorting
         self._display_order: list[int] = []  # display_pos -> real_idx
@@ -193,6 +196,27 @@ class TimelineWidget(QWidget):
             return self.COLORS[status]
         return fallback
 
+    # Stripe colors for per-frame review actions (drawn under each cell).
+    _REVIEW_STRIPE_COLORS = {
+        "accept": QColor(76, 200, 80),    # green
+        "correct": QColor(76, 200, 80),   # green (still a positive resolution)
+        "skip": QColor(255, 200, 60),     # yellow
+        "flag": QColor(220, 70, 70),      # red
+    }
+
+    def set_review_actions(self, mapping: dict[int, str]) -> None:
+        """Register per-frame human review actions.
+
+        mapping: {real_frame_idx: 'accept'|'correct'|'skip'|'flag'}.
+        Frames not in the mapping are treated as un-reviewed (no stripe).
+        """
+        self._review_actions = {k: v for k, v in mapping.items() if v}
+        self.update()
+
+    def clear_review_actions(self) -> None:
+        self._review_actions = {}
+        self.update()
+
     def set_frame_status(self, idx: int, status: str, immediate: bool = False) -> None:
         """Update status for a frame.
 
@@ -319,6 +343,9 @@ class TimelineWidget(QWidget):
         else:
             self._draw_block_frames(painter, margin, top, width, height, dark)
 
+        # Draw review-action stripes (under cells)
+        self._draw_review_stripes(painter, margin, top, height)
+
         # Draw trim markers and current frame indicator
         self._draw_trim_markers(painter, top, height)
         self._draw_current_frame_marker(painter, top, height)
@@ -394,6 +421,30 @@ class TimelineWidget(QWidget):
 
                 current_status = status
                 block_start = display_pos
+
+    def _draw_review_stripes(
+        self, painter: QPainter, margin: int, top: int, height: int
+    ) -> None:
+        """Draw a small colored stripe along the bottom edge of reviewed cells."""
+        if not self._review_actions or self._frame_width <= 0:
+            return
+        stripe_h = max(2, min(4, int(height * 0.18)))
+        stripe_y = top + height - stripe_h
+        end = min(self._scroll_offset + self._visible_count, self.total_frames)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        for display_pos in range(self._scroll_offset, end):
+            real_idx = self._display_order[display_pos]
+            action = self._review_actions.get(real_idx)
+            if not action:
+                continue
+            color = self._REVIEW_STRIPE_COLORS.get(action)
+            if color is None:
+                continue
+            visible_pos = display_pos - self._scroll_offset
+            x = margin + visible_pos * self._frame_width
+            painter.setBrush(QBrush(color))
+            painter.drawRect(int(x), stripe_y, int(self._frame_width) + 1, stripe_h)
 
     def _draw_trim_markers(self, painter: QPainter, top: int, height: int) -> None:
         """Draw left/right trim markers as red sideways triangles above the bar."""

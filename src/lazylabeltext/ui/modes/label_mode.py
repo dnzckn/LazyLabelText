@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QKeySequence, QShortcut
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from lazylabeltext.ui.category_colors import color_map_for
 from lazylabeltext.ui.modes.base_mode import BaseMode
 from lazylabeltext.ui.widgets.confidence_bar import ConfidenceBar
 from lazylabeltext.ui.widgets.timeline_widget import ZoomableTimeline
@@ -32,12 +33,6 @@ if TYPE_CHECKING:
     from lazylabeltext.ui.main_window import MainWindow
 
 logger = logging.getLogger("lazylabeltext")
-
-
-def _category_color(index: int) -> QColor:
-    """Deterministic distinct-hue color for a category at the given index."""
-    hue = int((index * 137.508) % 360)
-    return QColor.fromHsl(hue, 180, 130)
 
 
 class LabelModeWidget(BaseMode):
@@ -236,10 +231,7 @@ class LabelModeWidget(BaseMode):
 
     def _configure_timeline_for_rubric(self, rubric: Rubric) -> None:
         """Set total frames + per-category color mapping on the timeline."""
-        color_map: dict[str, QColor] = {}
-        for i, cat in enumerate(rubric.categories):
-            color_map[cat.name] = _category_color(i)
-        self.timeline.timeline.set_custom_colors(color_map)
+        self.timeline.timeline.set_custom_colors(color_map_for(rubric.categories))
         self.timeline.timeline.set_frame_count(len(self._chunks))
         # Names for hover tooltip — chunk number + first 60 chars.
         names: list[str] = []
@@ -253,6 +245,7 @@ class LabelModeWidget(BaseMode):
     def _refresh_timeline_statuses(self) -> None:
         statuses: dict[int, str] = {}
         confidences: dict[int, float] = {}
+        review_actions: dict[int, str] = {}
         for i, chunk in enumerate(self._chunks):
             lab = self._labels_by_chunk.get(chunk.id or -1)
             if not lab:
@@ -269,8 +262,11 @@ class LabelModeWidget(BaseMode):
             if cats:
                 statuses[i] = cats[0]
             confidences[i] = lab.composite_confidence or 0.0
+            if review and review.action:
+                review_actions[i] = review.action
         self.timeline.timeline.set_batch_statuses(statuses)
         self.timeline.timeline.set_confidence_scores(confidences)
+        self.timeline.timeline.set_review_actions(review_actions)
         if self._chunks:
             self.timeline.timeline.set_current_frame(self._current_index)
 

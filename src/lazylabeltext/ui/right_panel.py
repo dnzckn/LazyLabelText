@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from lazylabeltext.core.models import Rubric
+from lazylabeltext.ui.category_colors import category_color
 
 
 class RightPanel(QWidget):
@@ -69,12 +70,22 @@ class RightPanel(QWidget):
 
         self.version_label.setText(f"{rubric.name} v{rubric.version}")
 
-        for cat in rubric.categories:
+        for i, cat in enumerate(rubric.categories):
             card = QWidget()
             card.setObjectName("categoryCard")
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(8, 6, 8, 6)
+            card_layout.setContentsMargins(10, 6, 8, 6)
             card_layout.setSpacing(2)
+
+            # Left-edge stripe in the same color the timeline uses for this category.
+            color = category_color(i)
+            card.setStyleSheet(
+                "QWidget#categoryCard {"
+                f"  border-left: 4px solid {color.name()};"
+                "  background-color: rgba(255, 255, 255, 0.03);"
+                "  border-radius: 3px;"
+                "}"
+            )
 
             name_label = QLabel(f"<b>{cat.name}</b>")
             card_layout.addWidget(name_label)
