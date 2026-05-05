@@ -39,3 +39,16 @@ class Paths:
     @property
     def log_file(self) -> Path:
         return self.log_dir / "lazylabeltext.log"
+
+    @property
+    def app_dir(self) -> Path:
+        """Directory of the installed package (next to demo_pictures, etc.)."""
+        return Path(__file__).resolve().parent.parent
+
+    @property
+    def demo_pictures_dir(self) -> Path:
+        return self.app_dir / "demo_pictures"
+
+    @property
+    def logo_path(self) -> Path:
+        return self.demo_pictures_dir / "logo2.png"

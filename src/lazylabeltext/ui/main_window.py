@@ -91,12 +91,17 @@ class MainWindow(QMainWindow):
         self._connect_signals()
         self._setup_shortcuts()
 
-        # 8. Window geometry
+        # 8. Window geometry + icon
         from lazylabeltext import __version__
 
         self._title_base = f"LazyLabelText by Deniz N. Cakan (version {__version__})"
         self.setWindowTitle(self._title_base)
         self.resize(self.settings.window_width, self.settings.window_height)
+
+        if self.paths.logo_path.exists():
+            from PyQt6.QtGui import QIcon
+
+            self.setWindowIcon(QIcon(str(self.paths.logo_path)))
 
         # 9. Update status bar
         self._update_provider_status()
