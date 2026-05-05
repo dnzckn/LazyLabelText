@@ -115,7 +115,20 @@ class AzureEmbeddingProvider:
         try:
             self._client = AzureOpenAIEmbeddings(**kwargs)
         except Exception as e:
-            raise EmbeddingProviderError("azure-embeddings", str(e)) from e
+            extra = ""
+            if self.use_env_credentials:
+                import os
+
+                names = list(self._ENV_KEY_VARS) + list(self._ENV_ENDPOINT_VARS) + list(
+                    self._ENV_VERSION_VARS
+                )
+                visible = [n for n in names if os.environ.get(n)]
+                extra = (
+                    f"\n\nEnvironment seen by app: visible={visible or '(none)'}"
+                )
+            raise EmbeddingProviderError(
+                "azure-embeddings", str(e) + extra
+            ) from e
         return self._client
 
     def encode(self, texts: list[str]) -> np.ndarray:

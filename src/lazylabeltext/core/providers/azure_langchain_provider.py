@@ -87,6 +87,24 @@ class AzureLangChainProvider:
             )
         return endpoint, api_key, api_version
 
+    def _visible_azure_env_summary(self) -> str:
+        """List which Azure-relevant env vars are visible to this process.
+
+        Used in error messages so the user can see at a glance whether the
+        env var they exported is actually reaching the running app.
+        """
+        import os
+
+        names = list(self._ENV_KEY_VARS) + list(self._ENV_ENDPOINT_VARS) + list(
+            self._ENV_VERSION_VARS
+        )
+        visible = [n for n in names if os.environ.get(n)]
+        missing = [n for n in names if n not in visible]
+        return (
+            f"visible to process: {visible or '(none)'}; "
+            f"not set in process env: {missing}"
+        )
+
     def _get_llm(self):
         if self._llm is not None:
             return self._llm
@@ -106,6 +124,11 @@ class AzureLangChainProvider:
             ) from e
 
         endpoint, api_key, api_version = self._resolve_credentials()
+        if self.use_env_credentials and (not endpoint or not api_key):
+            logger.info(
+                "Azure env-credentials check — %s",
+                self._visible_azure_env_summary(),
+            )
 
         try:
             httpx_client = httpx.Client(http2=self.http2, verify=self.verify_ssl)
@@ -134,7 +157,13 @@ class AzureLangChainProvider:
         try:
             self._llm = AzureChatOpenAI(**kwargs)
         except Exception as e:
-            raise LLMProviderError("azure", str(e)) from e
+            # If langchain itself couldn't resolve creds, append the env-var
+            # snapshot so the user can tell whether the var is actually
+            # reaching the process (vs. only living in their shell rc).
+            extra = ""
+            if self.use_env_credentials:
+                extra = f"\n\nEnvironment seen by app: {self._visible_azure_env_summary()}"
+            raise LLMProviderError("azure", str(e) + extra) from e
         return self._llm
 
     def complete(self, prompt: str, max_tokens: int = 4096) -> str:
