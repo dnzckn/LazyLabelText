@@ -453,12 +453,18 @@ class TimelineWidget(QWidget):
     def _draw_review_stripes(
         self, painter: QPainter, margin: int, top: int, height: int
     ) -> None:
-        """Draw a small colored stripe along the bottom edge of reviewed cells."""
+        """Draw a small colored stripe along the bottom edge of reviewed cells.
+
+        A 1px black separator sits just above the stripe so the review color
+        stays distinguishable from a similarly-hued category fill.
+        """
         if not self._review_actions or self._frame_width <= 0:
             return
         stripe_h = max(2, min(4, int(height * 0.18)))
         stripe_y = top + height - stripe_h
+        sep_y = stripe_y - 1
         end = min(self._scroll_offset + self._visible_count, self.total_frames)
+        sep_color = QColor(0, 0, 0, 220)
 
         painter.setPen(Qt.PenStyle.NoPen)
         for display_pos in range(self._scroll_offset, end):
@@ -471,8 +477,13 @@ class TimelineWidget(QWidget):
                 continue
             visible_pos = display_pos - self._scroll_offset
             x = margin + visible_pos * self._frame_width
+            w = int(self._frame_width) + 1
+            # Separator above the stripe — keeps the review color visually
+            # distinct from a similar-hued category fill above it.
+            painter.setBrush(QBrush(sep_color))
+            painter.drawRect(int(x), sep_y, w, 1)
             painter.setBrush(QBrush(color))
-            painter.drawRect(int(x), stripe_y, int(self._frame_width) + 1, stripe_h)
+            painter.drawRect(int(x), stripe_y, w, stripe_h)
 
     def _draw_trim_markers(self, painter: QPainter, top: int, height: int) -> None:
         """Draw left/right trim markers as red sideways triangles above the bar."""
