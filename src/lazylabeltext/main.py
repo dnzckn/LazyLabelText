@@ -58,6 +58,21 @@ def main() -> None:
     except Exception:
         pass
 
+    # Load .env BEFORE provider init so the env vars exported by the file are
+    # in os.environ when AzureChatOpenAI etc. resolve their credentials.
+    try:
+        from lazylabeltext.config.paths import Paths
+        from lazylabeltext.config.settings import Settings
+        from lazylabeltext.utils.dotenv_loader import load_dotenv_file
+
+        _paths = Paths()
+        _settings = Settings.load_from_file(str(_paths.settings_file))
+        if _settings.dotenv_enabled:
+            _path = _settings.dotenv_path or str(_paths.config_dir / ".env")
+            load_dotenv_file(_path)
+    except Exception:
+        pass
+
     startup_display.update_step(2, "Applying theme")
     try:
         from lazylabeltext.ui.theme import apply_theme

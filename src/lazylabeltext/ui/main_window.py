@@ -547,6 +547,24 @@ class MainWindow(QMainWindow):
     def _open_settings(self) -> None:
         dialog = ProviderSettingsDialog(self.settings, self)
         if dialog.exec():
+            # Reload .env first so freshly-enabled keys land in os.environ
+            # before _init_providers reads from there.
+            try:
+                from lazylabeltext.utils.dotenv_loader import load_dotenv_file
+
+                if self.settings.dotenv_enabled:
+                    path = (
+                        self.settings.dotenv_path
+                        or str(self.paths.config_dir / ".env")
+                    )
+                    n = load_dotenv_file(path)
+                    if n:
+                        self.notification_manager.show_success(
+                            f"Loaded {n} variable(s) from .env"
+                        )
+            except Exception:
+                pass
+
             self._init_providers()
             if self.label_manager:
                 self.label_manager.set_llm_provider(self.llm_provider)

@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -72,6 +73,41 @@ class ProviderSettingsDialog(QDialog):
         )
         self.use_env_check.toggled.connect(self._on_use_env_toggled)
         llm_layout.addRow("", self.use_env_check)
+
+        # .env file loader — fallback when shell env doesn't propagate to the
+        # launcher (Windows shortcuts, IDE terminals, frozen builds, etc.).
+        self.dotenv_check = QCheckBox("Load .env file at startup")
+        self.dotenv_check.setToolTip(
+            "Read KEY=value pairs from a .env file and inject them into the "
+            "process environment on startup. Existing env vars are NEVER "
+            "overwritten — your shell still wins. The file is read once at "
+            "launch; restart the app after editing it."
+        )
+        self.dotenv_check.toggled.connect(self._on_dotenv_toggled)
+        llm_layout.addRow("", self.dotenv_check)
+
+        self.dotenv_path_edit = QLineEdit()
+        self.dotenv_path_edit.setPlaceholderText(
+            "(defaults to <config-dir>/.env)"
+        )
+        self.dotenv_browse_btn = QPushButton("Browse…")
+        self.dotenv_browse_btn.clicked.connect(self._browse_dotenv_path)
+        dotenv_row = QHBoxLayout()
+        dotenv_row.addWidget(self.dotenv_path_edit)
+        dotenv_row.addWidget(self.dotenv_browse_btn)
+        self.dotenv_path_label = QLabel(".env path:")
+        llm_layout.addRow(self.dotenv_path_label, dotenv_row)
+
+        dotenv_help = QLabel(
+            "Format: one KEY=value per line. Comments start with #. "
+            "Quotes are optional. Example:\n"
+            "    AZURE_OPENAI_API_KEY=your-key\n"
+            "    AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com\n"
+            "    OPENAI_API_VERSION=2024-08-01-preview"
+        )
+        dotenv_help.setStyleSheet("color: #888; font-size: 11px;")
+        dotenv_help.setWordWrap(True)
+        llm_layout.addRow("", dotenv_help)
 
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
@@ -203,6 +239,13 @@ class ProviderSettingsDialog(QDialog):
         self.use_env_check.setChecked(
             getattr(self.settings, "llm_use_env_credentials", True)
         )
+        self.dotenv_check.setChecked(
+            getattr(self.settings, "dotenv_enabled", False)
+        )
+        self.dotenv_path_edit.setText(
+            getattr(self.settings, "dotenv_path", "")
+        )
+        self._on_dotenv_toggled(self.dotenv_check.isChecked())
         self.api_key_edit.setText(self.settings.llm_api_key)
         self.llm_model_combo.setCurrentText(self.settings.llm_model)
         self.base_url_edit.setText(self.settings.llm_base_url)
@@ -308,6 +351,21 @@ class ProviderSettingsDialog(QDialog):
             self.llm_model_combo.addItems(
                 ["llama3", "mistral", "gemma2", "qwen2.5"]
             )
+
+    def _on_dotenv_toggled(self, checked: bool) -> None:
+        self.dotenv_path_edit.setEnabled(checked)
+        self.dotenv_browse_btn.setEnabled(checked)
+        self.dotenv_path_label.setEnabled(checked)
+
+    def _browse_dotenv_path(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choose .env file",
+            self.dotenv_path_edit.text() or str(),
+            "Env files (*.env *);;All files (*)",
+        )
+        if path:
+            self.dotenv_path_edit.setText(path)
 
     def _on_use_env_toggled(self, checked: bool) -> None:
         provider = self.llm_provider_combo.currentText()
@@ -475,6 +533,8 @@ class ProviderSettingsDialog(QDialog):
     def _save_and_accept(self) -> None:
         self.settings.llm_provider = self.llm_provider_combo.currentText()
         self.settings.llm_use_env_credentials = self.use_env_check.isChecked()
+        self.settings.dotenv_enabled = self.dotenv_check.isChecked()
+        self.settings.dotenv_path = self.dotenv_path_edit.text().strip()
         # Don't keep the field's text in memory if env-mode is on — that way
         # toggling env-mode off in the same session doesn't accidentally
         # reuse a stale paste.

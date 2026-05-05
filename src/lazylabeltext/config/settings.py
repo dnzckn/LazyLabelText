@@ -31,6 +31,13 @@ class Settings:
     # never enter app config or settings.json.
     llm_use_env_credentials: bool = True
 
+    # Optional .env file loader. Useful when shell-exported env vars don't
+    # propagate to the launcher (Windows shortcuts, IDE terminals, etc.).
+    # When enabled, KEY=value pairs in `dotenv_path` are loaded into
+    # os.environ on startup *without* overwriting anything already set.
+    dotenv_enabled: bool = False
+    dotenv_path: str = ""  # blank → "<app_config_dir>/.env"
+
     # Azure OpenAI specifics — only consulted when llm_provider == "azure".
     # api_version + endpoint are typed in by the user, persisted between
     # sessions; auth still goes through env vars by default.
