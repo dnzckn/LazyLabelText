@@ -12,13 +12,7 @@ The tool's job ends at "labeled corpus." It does not consolidate, synthesize, or
 
 ## Get Started
 
-**Full install (with LLM labeling and local embeddings):**
-```bash
-pip install -e ".[include-ai]"
-llt
-```
-
-**Core install (no PyTorch / no LLM labeling):**
+**Install (everything in one shot — LLM providers, local embeddings, high-fidelity conversion):**
 ```bash
 pip install -e .
 llt
@@ -28,7 +22,7 @@ llt
 ```bash
 git clone https://github.com/dnzckn/LazyLabelText.git
 cd LazyLabelText
-pip install -e ".[include-ai]"
+pip install -e .
 llt
 ```
 
@@ -38,9 +32,9 @@ llt
 
 | Type | Provider | Env var | Notes |
 |---|---|---|---|
-| LLM | Anthropic (Claude) | `ANTHROPIC_API_KEY` | hosted; install with `[anthropic]` or `[include-ai]` |
-| LLM | OpenAI (GPT) | `OPENAI_API_KEY` | hosted; install with `[openai]` or `[include-ai]` |
-| LLM | Google (Gemini) | `GOOGLE_API_KEY` | hosted; install with `[google]` or `[include-ai]` |
+| LLM | Anthropic (Claude) | `ANTHROPIC_API_KEY` | hosted |
+| LLM | OpenAI (GPT) | `OPENAI_API_KEY` | hosted |
+| LLM | Google (Gemini) | `GOOGLE_API_KEY` | hosted |
 | LLM | Ollama (Llama, Mistral, Gemma, Qwen, …) | — | local; needs an Ollama server, configure base URL in-app |
 | Embedding | sentence-transformers | — | local; ~90 MB model downloaded on first use |
 

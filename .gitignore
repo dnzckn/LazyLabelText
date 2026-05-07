@@ -47,6 +47,10 @@ Thumbs.db
 *.db-wal
 *.parquet
 
+# Test/source documents — never commit corpora to the repo.
+*.pdf
+*.docx
+
 # Exported labeled corpora — generated artifacts, not source.
 doc_test/labeled_corpus.json
 doc_test/labeled_corpus*.jsonl

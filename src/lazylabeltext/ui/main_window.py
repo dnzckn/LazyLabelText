@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QMainWindow,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QSplitter,
     QVBoxLayout,
@@ -41,6 +42,7 @@ from lazylabeltext.ui.right_panel import RightPanel
 from lazylabeltext.ui.theme import apply_theme
 from lazylabeltext.ui.widgets.provider_settings_dialog import ProviderSettingsDialog
 from lazylabeltext.ui.widgets.status_bar import StatusBar
+from lazylabeltext.ui.workers.conversion_worker import ConversionWorker
 
 logger = logging.getLogger("lazylabeltext")
 
@@ -282,7 +284,7 @@ class MainWindow(QMainWindow):
         self.database = Database(str(db_path))
 
         # Initialize managers
-        self.document_manager = DocumentManager(self.database)
+        self.document_manager = DocumentManager(self.database, self.settings)
         self.rubric_manager = RubricManager(self.database)
         self.chunk_manager = ChunkManager(
             self.database, self.embedding_provider, self.llm_provider
@@ -308,9 +310,10 @@ class MainWindow(QMainWindow):
         self.app_context.llm_provider = self.llm_provider
         self.app_context.embedding_provider = self.embedding_provider
 
-        # Load documents
-        docs = self.document_manager.load_folder(folder_path)
-        self.left_panel.populate(docs)
+        # Show docs that already exist in the DB straight away so the panel
+        # isn't empty while new files are converting in the background.
+        existing_docs = self.document_manager.get_all_documents()
+        self.left_panel.populate(existing_docs)
 
         # Load rubric
         rubric = self.rubric_manager.get_active_rubric()
@@ -332,7 +335,95 @@ class MainWindow(QMainWindow):
         self.settings.save_to_file(str(self.paths.settings_file))
 
         self.setWindowTitle(f"{self._title_base} — {Path(folder_path).name}")
-        self.notification_manager.show_success(f"Opened project: {len(docs)} documents")
+
+        # Convert any new files in the background so the UI stays responsive,
+        # especially with high-fidelity (docling) conversion enabled.
+        self._start_conversion_for_folder(folder_path, len(existing_docs))
+
+    def _start_conversion_for_folder(
+        self, folder_path: str, existing_count: int
+    ) -> None:
+        """Enumerate files in folder and convert any new ones in a worker."""
+        if self.document_manager is None:
+            return
+        try:
+            all_paths = self.document_manager.find_supported_files(folder_path)
+        except FileNotFoundError as e:
+            self.notification_manager.show_error(str(e))
+            return
+
+        existing_names = {
+            d.filename for d in self.document_manager.get_all_documents()
+        }
+        new_paths = [
+            p for p in all_paths if Path(p).name not in existing_names
+        ]
+
+        if not new_paths:
+            self.notification_manager.show_success(
+                f"Opened project: {existing_count} documents"
+            )
+            return
+
+        progress = QProgressDialog(
+            "Converting documents…", "Cancel", 0, len(new_paths), self
+        )
+        progress.setWindowTitle("Converting")
+        progress.setMinimumDuration(0)
+        progress.setAutoClose(True)
+        progress.setAutoReset(False)
+        progress.setValue(0)
+
+        worker = ConversionWorker(self.document_manager, new_paths, parent=self)
+
+        def _on_progress(current: int, total: int) -> None:
+            progress.setMaximum(total)
+            progress.setValue(current)
+
+        def _on_status(msg: str) -> None:
+            if msg:
+                progress.setLabelText(msg)
+                self.notification_manager.show(msg, duration=0)
+
+        def _on_doc(doc_id: int) -> None:
+            if self.document_manager is None:
+                return
+            doc = self.document_manager.get_document(doc_id)
+            if doc is None:
+                return
+            self.left_panel.populate(self.document_manager.get_all_documents())
+
+        def _on_failed(_doc_id: int, err: str) -> None:
+            logger.warning("Conversion failed: %s", err)
+
+        def _on_finished() -> None:
+            progress.setValue(progress.maximum())
+            progress.close()
+            if self.document_manager is None:
+                return
+            total = len(self.document_manager.get_all_documents())
+            self._update_stats()
+            self.notification_manager.show_success(
+                f"Opened project: {total} documents"
+            )
+            self._conversion_worker = None
+
+        def _on_error(err: str) -> None:
+            progress.close()
+            self.notification_manager.show_error(f"Conversion error: {err}")
+            self._conversion_worker = None
+
+        worker.progress.connect(_on_progress)
+        worker.status_changed.connect(_on_status)
+        worker.document_converted.connect(_on_doc)
+        worker.document_failed.connect(_on_failed)
+        worker.finished.connect(_on_finished)
+        worker.error.connect(_on_error)
+        progress.canceled.connect(worker.stop)
+
+        # Hold a reference so Qt doesn't garbage-collect mid-run.
+        self._conversion_worker = worker
+        worker.start()
 
     def _init_mode_widgets(self) -> None:
         """Initialize mode-specific widgets with app context."""

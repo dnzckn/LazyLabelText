@@ -58,6 +58,13 @@ class Settings:
     multi_run_count: int = 1
     label_temperature: float = 0.3
 
+    # High-fidelity conversion (docling). When enabled, .pdf and .docx are
+    # routed through docling for proper table/figure structure. Slower and
+    # downloads ~1–2 GB of models on first run. OCR is a separate switch
+    # because it adds another model and is only needed for scanned PDFs.
+    use_high_fidelity_conversion: bool = False
+    high_fidelity_ocr: bool = False
+
     # Chunking defaults
     default_chunk_strategy: str = "structural"
     chunk_min_tokens: int = 50

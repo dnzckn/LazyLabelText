@@ -206,6 +206,56 @@ class Database:
         )
         self.conn.commit()
 
+    def replace_document_content(
+        self, doc_id: int, doc: ConvertedDocument
+    ) -> None:
+        """Update a document's converted content in place, preserving its id.
+
+        Cascade-deletes chunks/labels/reviews (the old chunking is invalid for
+        the new text) but keeps the documents row so other UI state holding
+        the doc_id continues to resolve.
+        """
+        self.conn.execute(
+            """DELETE FROM human_reviews
+               WHERE label_id IN (
+                   SELECT l.id FROM labels l
+                   JOIN chunks c ON l.chunk_id = c.id
+                   WHERE c.document_id = ?
+               )""",
+            (doc_id,),
+        )
+        self.conn.execute(
+            """DELETE FROM labels
+               WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ?)""",
+            (doc_id,),
+        )
+        self.conn.execute(
+            "DELETE FROM chunks WHERE document_id = ?", (doc_id,)
+        )
+        self.conn.execute(
+            "DELETE FROM chunking_runs WHERE document_id = ?", (doc_id,)
+        )
+        self.conn.execute(
+            """UPDATE documents
+               SET filename = ?, format = ?, full_text = ?,
+                   headings_json = ?, pages_json = ?, sections_json = ?,
+                   metadata_json = ?, status = ?, warnings_json = ?
+               WHERE id = ?""",
+            (
+                doc.filename,
+                doc.format,
+                doc.full_text,
+                json.dumps([vars(h) for h in doc.headings]),
+                json.dumps([vars(p) for p in doc.pages]),
+                json.dumps([vars(s) for s in doc.sections]),
+                json.dumps(doc.metadata),
+                doc.status,
+                json.dumps(doc.warnings),
+                doc_id,
+            ),
+        )
+        self.conn.commit()
+
     def update_document_status(self, doc_id: int, status: str) -> None:
         self.conn.execute(
             "UPDATE documents SET status = ? WHERE id = ?", (status, doc_id)
