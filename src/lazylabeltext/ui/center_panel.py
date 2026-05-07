@@ -14,7 +14,7 @@ class CenterPanel(QStackedWidget):
         "chunk",
         "label",
         "results",
-        "propagation",
+        "parallel",
         "export",
     ]
 

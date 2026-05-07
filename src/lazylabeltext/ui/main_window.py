@@ -27,7 +27,7 @@ from lazylabeltext.core.chunk_manager import ChunkManager
 from lazylabeltext.core.database import Database
 from lazylabeltext.core.document_manager import DocumentManager
 from lazylabeltext.core.label_manager import LabelManager
-from lazylabeltext.core.propagation_manager import PropagationManager
+from lazylabeltext.core.parallel_orchestrator import ParallelOrchestrator
 from lazylabeltext.core.providers import create_embedding_provider, create_llm_provider
 from lazylabeltext.core.rubric_manager import RubricManager
 from lazylabeltext.ui.center_panel import CenterPanel
@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
         self.chunk_manager: ChunkManager | None = None
         self.label_manager: LabelManager | None = None
         self.audit_manager: AuditManager | None = None
-        self.propagation_manager: PropagationManager | None = None
+        self.parallel_orchestrator: ParallelOrchestrator | None = None
 
         # 3. Providers
         self.llm_provider = None
@@ -256,7 +256,7 @@ class MainWindow(QMainWindow):
             "chunk_mode": lambda: self.mode_manager.set_mode("chunk"),
             "label_mode": lambda: self.mode_manager.set_mode("label"),
             "results_mode": lambda: self.mode_manager.set_mode("results"),
-            "propagation_mode": lambda: self.mode_manager.set_mode("propagation"),
+            "parallel_mode": lambda: self.mode_manager.set_mode("parallel"),
             "export_mode": lambda: self.mode_manager.set_mode("export"),
             "save_project": self._save_project,
             "open_folder": self._open_folder_dialog,
@@ -293,11 +293,12 @@ class MainWindow(QMainWindow):
             self.database, self.llm_provider, self.embedding_provider
         )
         self.audit_manager = AuditManager(self.database)
-        self.propagation_manager = PropagationManager(
+        self.parallel_orchestrator = ParallelOrchestrator(
             self.database,
             self.document_manager,
             self.chunk_manager,
             self.label_manager,
+            self.settings,
         )
 
         # Update app context
@@ -307,6 +308,7 @@ class MainWindow(QMainWindow):
         self.app_context.chunk_manager = self.chunk_manager
         self.app_context.label_manager = self.label_manager
         self.app_context.audit_manager = self.audit_manager
+        self.app_context.parallel_orchestrator = self.parallel_orchestrator
         self.app_context.llm_provider = self.llm_provider
         self.app_context.embedding_provider = self.embedding_provider
 
@@ -394,18 +396,35 @@ class MainWindow(QMainWindow):
             self.left_panel.populate(self.document_manager.get_all_documents())
 
         def _on_failed(_doc_id: int, err: str) -> None:
+            # Surface failed conversions in the left panel so the user can see
+            # the file was attempted (and why it failed), instead of looking
+            # silently ignored. record_failed already inserted a 'failed' row;
+            # populate the panel from the DB to include it.
             logger.warning("Conversion failed: %s", err)
+            if self.document_manager is None:
+                return
+            self.left_panel.populate(self.document_manager.get_all_documents())
 
         def _on_finished() -> None:
             progress.setValue(progress.maximum())
             progress.close()
             if self.document_manager is None:
                 return
-            total = len(self.document_manager.get_all_documents())
+            # Final sync — guarantees both succeeded and failed rows are
+            # represented in the panel even if a signal got dropped.
+            all_docs = self.document_manager.get_all_documents()
+            self.left_panel.populate(all_docs)
             self._update_stats()
-            self.notification_manager.show_success(
-                f"Opened project: {total} documents"
-            )
+            failed = sum(1 for d in all_docs if d.status == "failed")
+            ok = len(all_docs) - failed
+            if failed:
+                self.notification_manager.show_warning(
+                    f"Opened project: {ok} ok, {failed} failed (see panel for details)"
+                )
+            else:
+                self.notification_manager.show_success(
+                    f"Opened project: {ok} documents"
+                )
             self._conversion_worker = None
 
         def _on_error(err: str) -> None:
@@ -431,7 +450,7 @@ class MainWindow(QMainWindow):
         from lazylabeltext.ui.modes.convert_mode import ConvertModeWidget
         from lazylabeltext.ui.modes.export_mode import ExportModeWidget
         from lazylabeltext.ui.modes.label_mode import LabelModeWidget
-        from lazylabeltext.ui.modes.propagation_mode import PropagationModeWidget
+        from lazylabeltext.ui.modes.parallel_mode import ParallelModeWidget
         from lazylabeltext.ui.modes.results_mode import ResultsModeWidget
         from lazylabeltext.ui.modes.rubric_mode import RubricModeWidget
 
@@ -451,7 +470,7 @@ class MainWindow(QMainWindow):
             "results", ResultsModeWidget(self.app_context)
         )
         self.center_panel.set_mode_widget(
-            "propagation", PropagationModeWidget(self.app_context, self)
+            "parallel", ParallelModeWidget(self.app_context, self)
         )
         self.center_panel.set_mode_widget("export", ExportModeWidget(self.app_context))
 

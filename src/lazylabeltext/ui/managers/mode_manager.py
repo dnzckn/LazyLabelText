@@ -10,11 +10,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("lazylabeltext")
 
-MODES = ["convert", "rubric", "chunk", "label", "results", "propagation", "export"]
+MODES = ["convert", "rubric", "chunk", "label", "results", "parallel", "export"]
 
 # Modes where the rubric panel on the right is genuinely useful.
-# Convert/Chunk/Propagation/Export don't reference categories.
-# Rubric is redundant (the rubric is the center pane there).
+# Convert/Chunk/Parallel/Export don't reference categories on their own
+# (Parallel mode embeds Label inside its drill-in but manages its own layout).
 _MODES_WITH_RUBRIC_PANEL = {"label", "results"}
 
 

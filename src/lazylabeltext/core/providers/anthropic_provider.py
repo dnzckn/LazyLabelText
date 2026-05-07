@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 
 from lazylabeltext.core.exceptions import LLMProviderError
 from lazylabeltext.core.models import Category, ClassificationResult
@@ -30,9 +31,17 @@ class AnthropicProvider:
         )
         self.model = model
         self._client = None
+        self._client_lock = threading.Lock()
 
     def _get_client(self):
-        if self._client is None:
+        # Double-checked locking: cheap read fast-path once the client exists,
+        # serialized init the first time so concurrent threads don't both
+        # construct the SDK client.
+        if self._client is not None:
+            return self._client
+        with self._client_lock:
+            if self._client is not None:
+                return self._client
             try:
                 import anthropic
             except ImportError as e:

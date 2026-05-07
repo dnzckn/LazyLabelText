@@ -72,6 +72,12 @@ class Settings:
     chunk_max_tokens: int = 800
     heading_split_levels: list[int] = field(default_factory=lambda: [1, 2, 3])
 
+    # Parallel mode — default worker count for chunk/label stages.
+    # Convert defaults to the same value but the user can dial it down via
+    # the strip spinbox if running docling (which holds a heavy singleton
+    # model and doesn't gain from many parallel converts).
+    parallel_workers: int = 4
+
     # Export
     export_format: str = "json"
 

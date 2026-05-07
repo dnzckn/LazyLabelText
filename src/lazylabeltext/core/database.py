@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,11 +29,78 @@ class Database:
 
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = str(db_path)
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.execute("PRAGMA foreign_keys=ON")
+        # Per-thread SQLite connections. Sharing one Connection across
+        # threads — even with check_same_thread=False — interleaves
+        # statements at the libsqlite layer ("API misuse" / "bad parameter"
+        # errors during parallel writes). With WAL + per-thread connections,
+        # SQLite handles cross-connection locking itself.
+        self._local = threading.local()
+        self._conns: list[sqlite3.Connection] = []
+        self._conns_lock = threading.Lock()
+
+        # Serialize Python-level access to the Database so multi-statement
+        # compound methods (delete-then-insert) are atomic across threads
+        # without us having to thread BEGIN/COMMIT through every method.
+        # Per-method overhead is microseconds; LLM calls in parallel mode
+        # dwarf the lock contention. RLock so methods can call each other.
+        self._lock = threading.RLock()
         self._ensure_schema()
+        self._install_synchronized_methods()
+
+    def _install_synchronized_methods(self) -> None:
+        """Wrap every public bound method with the instance lock.
+
+        Skips data descriptors (properties like ``conn``) and non-callables.
+        Done per-instance so close() doesn't leak across instances and we
+        don't need to manage a shared class-level state.
+        """
+        import inspect
+
+        lock = self._lock
+        cls = type(self)
+        for name in dir(cls):
+            if name.startswith("_"):
+                continue
+            try:
+                class_attr = inspect.getattr_static(cls, name)
+            except AttributeError:
+                continue
+            # Skip properties and other data descriptors — they don't have a
+            # plain setter on the instance and conn especially needs to stay
+            # a property so each thread builds its own connection.
+            if isinstance(class_attr, property) or hasattr(class_attr, "__get__") and not inspect.isfunction(class_attr):
+                continue
+            if not callable(class_attr):
+                continue
+            bound = getattr(self, name)
+            if not callable(bound):
+                continue
+
+            def _make(method):
+                def wrapped(*args, **kwargs):
+                    with lock:
+                        return method(*args, **kwargs)
+                wrapped.__name__ = getattr(method, "__name__", "wrapped")
+                return wrapped
+
+            object.__setattr__(self, name, _make(bound))
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        existing = getattr(self._local, "conn", None)
+        if existing is not None:
+            return existing
+        c = sqlite3.connect(self.db_path, check_same_thread=False)
+        c.row_factory = sqlite3.Row
+        c.execute("PRAGMA journal_mode=WAL")
+        c.execute("PRAGMA foreign_keys=ON")
+        # Wait up to 5s for a contended write before raising sqlite3.OperationalError.
+        # Parallel chunk inserts contend briefly; this avoids spurious "database is locked".
+        c.execute("PRAGMA busy_timeout=5000")
+        self._local.conn = c
+        with self._conns_lock:
+            self._conns.append(c)
+        return c
 
     def _ensure_schema(self) -> None:
         """Create tables if they don't exist."""
@@ -853,7 +922,14 @@ class Database:
     # --- Lifecycle ---
 
     def close(self) -> None:
-        self.conn.close()
+        with self._conns_lock:
+            for c in self._conns:
+                with contextlib.suppress(Exception):
+                    c.close()
+            self._conns.clear()
+        # Drop the thread-local so a fresh open after close still works.
+        with contextlib.suppress(AttributeError):
+            delattr(self._local, "conn")
 
     @staticmethod
     def now_iso() -> str:

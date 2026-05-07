@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from collections.abc import Callable
 
@@ -32,6 +33,9 @@ class LabelManager:
         self.llm_provider = llm_provider
         self.embedding_provider = embedding_provider
         self._exemplar_embeddings: dict[str, np.ndarray] | None = None
+        # Guards _exemplar_embeddings build/read so concurrent label calls
+        # (parallel mode) don't both rebuild the cache and clobber it.
+        self._exemplar_lock = threading.Lock()
 
     def set_llm_provider(self, provider: LLMProviderProtocol | None) -> None:
         self.llm_provider = provider
@@ -286,15 +290,21 @@ class LabelManager:
         if not self.embedding_provider:
             return 0.0
 
-        if self._exemplar_embeddings is None:
-            self._build_exemplar_embeddings(rubric)
+        # Build-once-then-read: lock the build so concurrent threads share
+        # one rebuild, then snapshot the dict so the dot-product loop runs
+        # outside the lock (cache invalidation only happens via
+        # set_embedding_provider, which assigns None).
+        with self._exemplar_lock:
+            if self._exemplar_embeddings is None:
+                self._build_exemplar_embeddings(rubric)
+            cache = self._exemplar_embeddings
 
-        if not self._exemplar_embeddings:
+        if not cache:
             return 0.0
 
         best_category = ""
         best_sim = -1.0
-        for cat_name, emb in self._exemplar_embeddings.items():
+        for cat_name, emb in cache.items():
             sim = float(
                 np.dot(chunk_emb, emb)
                 / (np.linalg.norm(chunk_emb) * np.linalg.norm(emb) + 1e-8)

@@ -12,6 +12,7 @@ Designed for corporate / Azure deployments where:
 from __future__ import annotations
 
 import logging
+import threading
 
 from lazylabeltext.core.exceptions import LLMProviderError
 from lazylabeltext.core.models import Category, ClassificationResult
@@ -44,6 +45,7 @@ class AzureLangChainProvider:
         self.http2 = http2
         self.use_env_credentials = use_env_credentials
         self._llm = None
+        self._llm_lock = threading.Lock()
 
     # Env-var fallback chain matches what langchain-openai itself looks for,
     # so the env-mode toggle behaves the same as the bare AzureChatOpenAI()
@@ -108,62 +110,64 @@ class AzureLangChainProvider:
     def _get_llm(self):
         if self._llm is not None:
             return self._llm
+        with self._llm_lock:
+            if self._llm is not None:
+                return self._llm
 
-        try:
-            from langchain_openai import AzureChatOpenAI
-        except ImportError as e:
-            raise LLMProviderError(
-                "azure",
-                "langchain-openai not installed (pip install langchain-openai httpx)",
-            ) from e
-        try:
-            import httpx
-        except ImportError as e:
-            raise LLMProviderError(
-                "azure", "httpx not installed (pip install httpx)"
-            ) from e
+            try:
+                from langchain_openai import AzureChatOpenAI
+            except ImportError as e:
+                raise LLMProviderError(
+                    "azure",
+                    "langchain-openai not installed (pip install langchain-openai httpx)",
+                ) from e
+            try:
+                import httpx
+            except ImportError as e:
+                raise LLMProviderError(
+                    "azure", "httpx not installed (pip install httpx)"
+                ) from e
 
-        endpoint, api_key, api_version = self._resolve_credentials()
-        if self.use_env_credentials and (not endpoint or not api_key):
-            logger.info(
-                "Azure env-credentials check — %s",
-                self._visible_azure_env_summary(),
-            )
-
-        try:
-            httpx_client = httpx.Client(http2=self.http2, verify=self.verify_ssl)
-        except Exception as e:
-            if self.http2:
-                logger.warning(
-                    "Falling back to HTTP/1.1 (h2 not available): %s", e
+            endpoint, api_key, api_version = self._resolve_credentials()
+            if self.use_env_credentials and (not endpoint or not api_key):
+                logger.info(
+                    "Azure env-credentials check — %s",
+                    self._visible_azure_env_summary(),
                 )
-                httpx_client = httpx.Client(http2=False, verify=self.verify_ssl)
-            else:
-                raise LLMProviderError("azure", f"httpx.Client failed: {e}") from e
 
-        kwargs: dict = {
-            "openai_api_version": api_version,
-            "azure_deployment": self.model,
-            "http_client": httpx_client,
-        }
-        # Only pass non-empty creds. Empty endpoint/key make langchain raise
-        # a confusing validation error; leaving them unset lets langchain do
-        # its own env-var fallback as a last resort.
-        if endpoint:
-            kwargs["azure_endpoint"] = endpoint
-        if api_key:
-            kwargs["api_key"] = api_key
+            try:
+                httpx_client = httpx.Client(http2=self.http2, verify=self.verify_ssl)
+            except Exception as e:
+                if self.http2:
+                    logger.warning(
+                        "Falling back to HTTP/1.1 (h2 not available): %s", e
+                    )
+                    httpx_client = httpx.Client(http2=False, verify=self.verify_ssl)
+                else:
+                    raise LLMProviderError(
+                        "azure", f"httpx.Client failed: {e}"
+                    ) from e
 
-        try:
-            self._llm = AzureChatOpenAI(**kwargs)
-        except Exception as e:
-            # If langchain itself couldn't resolve creds, append the env-var
-            # snapshot so the user can tell whether the var is actually
-            # reaching the process (vs. only living in their shell rc).
-            extra = ""
-            if self.use_env_credentials:
-                extra = f"\n\nEnvironment seen by app: {self._visible_azure_env_summary()}"
-            raise LLMProviderError("azure", str(e) + extra) from e
+            kwargs: dict = {
+                "openai_api_version": api_version,
+                "azure_deployment": self.model,
+                "http_client": httpx_client,
+            }
+            if endpoint:
+                kwargs["azure_endpoint"] = endpoint
+            if api_key:
+                kwargs["api_key"] = api_key
+
+            try:
+                self._llm = AzureChatOpenAI(**kwargs)
+            except Exception as e:
+                extra = ""
+                if self.use_env_credentials:
+                    extra = (
+                        f"\n\nEnvironment seen by app: "
+                        f"{self._visible_azure_env_summary()}"
+                    )
+                raise LLMProviderError("azure", str(e) + extra) from e
         return self._llm
 
     def complete(self, prompt: str, max_tokens: int = 4096) -> str:

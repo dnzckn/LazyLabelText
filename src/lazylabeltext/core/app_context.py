@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from lazylabeltext.core.database import Database
     from lazylabeltext.core.document_manager import DocumentManager
     from lazylabeltext.core.label_manager import LabelManager
+    from lazylabeltext.core.parallel_orchestrator import ParallelOrchestrator
     from lazylabeltext.core.protocols import (
         EmbeddingProviderProtocol,
         LLMProviderProtocol,
@@ -34,6 +35,7 @@ class AppContext:
     chunk_manager: ChunkManager | None = None
     label_manager: LabelManager | None = None
     audit_manager: AuditManager | None = None
+    parallel_orchestrator: ParallelOrchestrator | None = None
     llm_provider: LLMProviderProtocol | None = None
     embedding_provider: EmbeddingProviderProtocol | None = None
 

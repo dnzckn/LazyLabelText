@@ -20,6 +20,7 @@ Manual install path (no internet on target machine):
 from __future__ import annotations
 
 import logging
+import threading
 
 import numpy as np
 
@@ -35,6 +36,15 @@ class SentenceTransformerProvider:
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
         self.model_name = model_name
         self._model = None
+        # Concurrent encode_one calls (parallel labeling) all hit _get_model
+        # together. Without a lock, every thread sees _model=None on the
+        # first call and each independently logs "Downloading..." and runs
+        # the SentenceTransformer constructor — wasted work and log spam.
+        # Double-checked locking: cheap fast-path once the model is loaded.
+        self._model_lock = threading.Lock()
+        # Belt and suspenders: even if the ctor raises and gets retried, only
+        # log the "Downloading…" notice once per provider instance.
+        self._announced_download = False
 
     def _local_path(self):
         return Paths().model_path(self.model_name)
@@ -42,71 +52,76 @@ class SentenceTransformerProvider:
     def _get_model(self):
         if self._model is not None:
             return self._model
-
-        try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError as e:
-            raise EmbeddingProviderError(
-                "sentence-transformers",
-                "sentence-transformers package not installed",
-            ) from e
-
-        local_path = self._local_path()
-
-        # 1. Local cache hit → load offline.
-        if local_path.exists() and any(local_path.iterdir()):
-            try:
-                logger.info(
-                    "Loading cached embedding model from %s", local_path
-                )
-                self._model = SentenceTransformer(str(local_path))
+        with self._model_lock:
+            if self._model is not None:
                 return self._model
-            except Exception as e:
-                # Corrupt cache → wipe + fall through to re-download.
-                logger.warning(
-                    "Cached model at %s failed to load (%s); re-downloading.",
-                    local_path,
-                    e,
-                )
+
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError as e:
+                raise EmbeddingProviderError(
+                    "sentence-transformers",
+                    "sentence-transformers package not installed",
+                ) from e
+
+            local_path = self._local_path()
+
+            # 1. Local cache hit → load offline.
+            if local_path.exists() and any(local_path.iterdir()):
                 try:
-                    import shutil
+                    logger.info(
+                        "Loading cached embedding model from %s", local_path
+                    )
+                    self._model = SentenceTransformer(str(local_path))
+                    return self._model
+                except Exception as e:
+                    logger.warning(
+                        "Cached model at %s failed to load (%s); re-downloading.",
+                        local_path,
+                        e,
+                    )
+                    try:
+                        import shutil
 
-                    shutil.rmtree(local_path, ignore_errors=True)
-                except Exception:
-                    pass
+                        shutil.rmtree(local_path, ignore_errors=True)
+                    except Exception:
+                        pass
 
-        # 2. Download via the SentenceTransformer constructor (uses HF Hub
-        #    cache under the hood). Then save a copy to our local models_dir
-        #    so subsequent runs — including offline runs — load from disk.
-        logger.info(
-            "Downloading embedding model '%s' (one-time)...", self.model_name
-        )
-        try:
-            model = SentenceTransformer(self.model_name)
-        except Exception as e:
-            raise EmbeddingProviderError(
-                "sentence-transformers",
-                (
-                    f"Failed to download '{self.model_name}': {e}\n\n"
-                    "To install manually, run on a machine with internet:\n"
-                    f"  python -c \"from sentence_transformers import "
-                    f"SentenceTransformer; "
-                    f"SentenceTransformer('{self.model_name}').save("
-                    f"'{local_path}')\"\n"
-                    f"Then copy the resulting folder to:\n  {local_path}"
-                ),
-            ) from e
+            # 2. Download via the SentenceTransformer constructor (uses HF
+            #    Hub cache under the hood). Save a copy to our local
+            #    models_dir so subsequent runs load from disk.
+            if not self._announced_download:
+                logger.info(
+                    "Downloading embedding model '%s' (one-time)...",
+                    self.model_name,
+                )
+                self._announced_download = True
+            try:
+                model = SentenceTransformer(self.model_name)
+            except Exception as e:
+                raise EmbeddingProviderError(
+                    "sentence-transformers",
+                    (
+                        f"Failed to download '{self.model_name}': {e}\n\n"
+                        "To install manually, run on a machine with internet:\n"
+                        f"  python -c \"from sentence_transformers import "
+                        f"SentenceTransformer; "
+                        f"SentenceTransformer('{self.model_name}').save("
+                        f"'{local_path}')\"\n"
+                        f"Then copy the resulting folder to:\n  {local_path}"
+                    ),
+                ) from e
 
-        try:
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            model.save(str(local_path))
-            logger.info("Cached embedding model to %s", local_path)
-        except Exception as e:
-            # Saving locally is a nicety; runtime still works via HF cache.
-            logger.warning("Could not save model to local cache: %s", e)
+            try:
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+                model.save(str(local_path))
+                logger.info("Cached embedding model to %s", local_path)
+            except Exception as e:
+                # Saving locally is a nicety; runtime still works via HF cache.
+                logger.warning("Could not save model to local cache: %s", e)
 
-        self._model = model
-        return self._model
+            self._model = model
+            return self._model
 
     def encode(self, texts: list[str]) -> np.ndarray:
         model = self._get_model()

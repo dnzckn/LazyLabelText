@@ -45,7 +45,7 @@ class HotkeyManager:
             HotkeyAction("label_mode", "Label Mode", "F4", category="Modes"),
             HotkeyAction("results_mode", "Results Mode", "F5", category="Modes"),
             HotkeyAction(
-                "propagation_mode", "Propagation Mode", "F6", category="Modes"
+                "parallel_mode", "Parallel Mode", "F6", category="Modes"
             ),
             HotkeyAction("export_mode", "Export Mode", "F7", category="Modes"),
             # Labeling
