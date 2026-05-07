@@ -48,6 +48,11 @@ class ConvertedDocument:
     status: str = "pending"  # pending / parsed / warnings / failed
     warnings: list[str] = field(default_factory=list)
     ingested_at: str = ""
+    # SHA256 of the source bytes — the canonical identity of a document.
+    # Two ingest paths pointing at the same content produce the same hash,
+    # so moves/copies are deduped without losing chunks/labels. Empty for
+    # legacy rows ingested before content-hash dedupe; treat as unknown.
+    source_hash: str = ""
 
 
 @dataclass

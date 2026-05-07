@@ -1,0 +1,26 @@
+# Example doc map.
+#
+# A doc map points the app at source documents wherever they live on disk
+# without copying them into one folder. Open via the "Open Doc Map" button
+# in the left panel; you'll then pick an output directory where the
+# project database (project.db) lives.
+#
+# Syntax:
+#   - Each non-blank, non-comment line is a path or glob pattern.
+#   - Lines starting with '!' EXCLUDE files matching the pattern.
+#   - '~' expands to your home directory; '$VAR' expands to env vars.
+#   - Relative paths resolve from the doc map file's directory.
+#   - '**' recurses into subdirectories; '*' matches one path segment.
+#   - Files with unsupported extensions are silently skipped.
+#
+# Example: research papers + project notes, excluding drafts.
+
+# Include
+~/Papers/2024/**/*.pdf
+~/Papers/2025/**/*.pdf
+~/Notes/**/*.md
+./local-handouts/*.docx
+
+# Exclude
+!~/Papers/**/draft/**
+!~/Notes/private/**

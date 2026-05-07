@@ -469,6 +469,12 @@ class ParallelModeWidget(BaseMode):
     def _on_strip_selection(self, doc_id: int) -> None:
         if doc_id <= 0:
             return
+        # Update global ui-state FIRST: label_mode's on_document_selected
+        # ignores its doc_id argument and reads from ctx.get_ui_state(
+        # "selected_document_id") instead. If we updated ui-state after
+        # firing on_document_selected, label_mode would re-render the
+        # *previous* doc, not the one the user just clicked.
+        self.ctx.set_ui_state("selected_document_id", doc_id)
         # Push selection into each embedded viewer so the drill-in shows
         # the right doc regardless of which inner tab is active.
         for w in (self.convert_widget, self.chunk_widget, self.label_widget):
@@ -480,10 +486,6 @@ class ParallelModeWidget(BaseMode):
         # clicking a doc lands on the most relevant viewer for the current
         # task. The user can still manually switch tabs afterwards.
         self._sync_detail_tab_to_stage()
-        # Mirror selection into the global ui-state so other code that reads
-        # 'selected_document_id' from AppContext stays in sync while the
-        # user is in parallel mode.
-        self.ctx.set_ui_state("selected_document_id", doc_id)
 
     def _on_inclusion_toggled(self, doc_id: int, included: bool) -> None:
         if self.ctx.parallel_orchestrator is None:
@@ -540,6 +542,22 @@ class ParallelModeWidget(BaseMode):
     def _on_doc_state(self, _doc_id: int, state_dict: dict) -> None:
         state = DocState(**state_dict)
         self.strip.update_doc(state)
+        # Live-update the side panel: if this doc is the one currently
+        # selected in the strip, refresh the embedded label viewer so its
+        # timeline ticks as new chunks complete instead of forcing the
+        # user to switch docs back and forth to pick up changes. Convert
+        # and chunk views don't change during labeling so we skip them.
+        selected = self.strip.selected_doc_id()
+        if selected and selected == state.doc_id and state.stage in (
+            "label", "queued", "done", "cancelled", "failed",
+        ):
+            try:
+                self.label_widget.on_document_selected(state.doc_id)
+            except Exception:
+                logger.debug(
+                    "Live label refresh failed for doc %s", state.doc_id,
+                    exc_info=True,
+                )
 
     def _on_stage_started(self, stage: str) -> None:
         self.status_label.setText(f"Running stage: {stage}")
@@ -557,6 +575,12 @@ class ParallelModeWidget(BaseMode):
             msg += " (cancelled)"
         self.status_label.setText(msg)
         self.main_window._update_stats()
+        # Belt-and-suspenders: rebuild the strip from the orchestrator's
+        # final state. If any per-doc state-changed signal got dropped or
+        # arrived out of order, this snapshot makes the strip consistent
+        # with the orchestrator (which is the source of truth).
+        if self.ctx.parallel_orchestrator is not None:
+            self.strip.populate(self.ctx.parallel_orchestrator.get_states())
 
     def _on_worker_error(self, msg: str) -> None:
         self.status_label.setText(f"Error: {msg}")

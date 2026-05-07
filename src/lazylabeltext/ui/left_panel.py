@@ -22,6 +22,7 @@ class LeftPanel(QWidget):
 
     document_selected = pyqtSignal(int)  # doc_id
     open_folder_requested = pyqtSignal()
+    open_docmap_requested = pyqtSignal()
     add_documents_requested = pyqtSignal()
     reset_project_requested = pyqtSignal()
     document_clear_requested = pyqtSignal(int)  # wipe chunks+labels for one doc
@@ -63,6 +64,14 @@ class LeftPanel(QWidget):
         self.open_btn.setObjectName("accentButton")
         self.open_btn.clicked.connect(self.open_folder_requested.emit)
         btn_layout.addWidget(self.open_btn)
+
+        self.open_docmap_btn = QPushButton("Open Doc Map")
+        self.open_docmap_btn.setToolTip(
+            "Open a project from a doc-map file (paths/globs across disk) "
+            "instead of a single folder. Source documents stay where they are."
+        )
+        self.open_docmap_btn.clicked.connect(self.open_docmap_requested.emit)
+        btn_layout.addWidget(self.open_docmap_btn)
 
         self.add_btn = QPushButton("Add Files")
         self.add_btn.clicked.connect(self.add_documents_requested.emit)

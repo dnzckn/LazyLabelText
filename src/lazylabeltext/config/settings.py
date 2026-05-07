@@ -20,6 +20,17 @@ class Settings:
 
     # Project
     last_project_path: str = ""
+    # Doc map ingestion: alternate to opening a folder. When kind == "docmap"
+    # the app loads source paths from a doc-map file and stores project.db
+    # in last_project_output instead of inside the corpus folder.
+    last_project_kind: str = "folder"  # "folder" | "docmap"
+    last_docmap_path: str = ""
+    last_project_output: str = ""
+
+    # Conversion concurrency. 1 is safe for the high-fidelity (docling)
+    # backend, which holds a singleton model. Lightweight backends
+    # (PyMuPDF, python-docx, markdown) are happy at 4+.
+    conversion_workers: int = 1
 
     # LLM Provider
     llm_provider: str = "anthropic"

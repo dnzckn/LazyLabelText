@@ -191,12 +191,21 @@ class Database:
             "ALTER TABLE labels ADD COLUMN logprob_signal REAL",
             "ALTER TABLE chunks ADD COLUMN embedding_json TEXT",
             "ALTER TABLE chunks ADD COLUMN embedding_model TEXT",
+            # source_hash: SHA256 of the source file bytes; canonical doc
+            # identity (replaces filename for dedupe). Legacy rows have
+            # NULL — treated as unknown by dedupe and lazily backfilled
+            # the next time their source path is visited.
+            "ALTER TABLE documents ADD COLUMN source_hash TEXT",
         ]:
             try:
                 self.conn.execute(stmt)
             except sqlite3.OperationalError:
                 # Column already exists or table just got created above.
                 pass
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_documents_source_hash "
+            "ON documents(source_hash)"
+        )
         self.conn.commit()
 
     # --- Documents ---
@@ -205,8 +214,9 @@ class Database:
         cur = self.conn.execute(
             """INSERT INTO documents
                (filename, format, full_text, headings_json, pages_json,
-                sections_json, metadata_json, status, warnings_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                sections_json, metadata_json, status, warnings_json,
+                source_hash)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 doc.filename,
                 doc.format,
@@ -217,6 +227,7 @@ class Database:
                 json.dumps(doc.metadata),
                 doc.status,
                 json.dumps(doc.warnings),
+                doc.source_hash or None,
             ),
         )
         self.conn.commit()
@@ -308,7 +319,8 @@ class Database:
             """UPDATE documents
                SET filename = ?, format = ?, full_text = ?,
                    headings_json = ?, pages_json = ?, sections_json = ?,
-                   metadata_json = ?, status = ?, warnings_json = ?
+                   metadata_json = ?, status = ?, warnings_json = ?,
+                   source_hash = ?
                WHERE id = ?""",
             (
                 doc.filename,
@@ -320,10 +332,53 @@ class Database:
                 json.dumps(doc.metadata),
                 doc.status,
                 json.dumps(doc.warnings),
+                doc.source_hash or None,
                 doc_id,
             ),
         )
         self.conn.commit()
+
+    def update_document_source(
+        self, doc_id: int, *, source_path: str, filename: str
+    ) -> None:
+        """Update a moved/renamed doc's source path + filename in place.
+
+        Used when the same content (matched by source_hash) shows up at a
+        new path on disk: keep all chunks/labels intact, just refresh the
+        provenance fields.
+        """
+        row = self.conn.execute(
+            "SELECT metadata_json FROM documents WHERE id = ?", (doc_id,)
+        ).fetchone()
+        if row is None:
+            return
+        meta = json.loads(row["metadata_json"]) or {}
+        meta["source"] = source_path
+        self.conn.execute(
+            "UPDATE documents SET filename = ?, metadata_json = ? WHERE id = ?",
+            (filename, json.dumps(meta), doc_id),
+        )
+        self.conn.commit()
+
+    def set_document_source_hash(self, doc_id: int, source_hash: str) -> None:
+        """Backfill source_hash for a legacy row that didn't have one."""
+        self.conn.execute(
+            "UPDATE documents SET source_hash = ? WHERE id = ?",
+            (source_hash, doc_id),
+        )
+        self.conn.commit()
+
+    def get_document_by_hash(self, source_hash: str) -> ConvertedDocument | None:
+        """Look up a document by its content hash (canonical identity)."""
+        if not source_hash:
+            return None
+        row = self.conn.execute(
+            "SELECT * FROM documents WHERE source_hash = ? LIMIT 1",
+            (source_hash,),
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_document(row)
 
     def update_document_status(self, doc_id: int, status: str) -> None:
         self.conn.execute(
@@ -344,6 +399,9 @@ class Database:
             status=row["status"],
             warnings=json.loads(row["warnings_json"]),
             ingested_at=row["ingested_at"] or "",
+            # Column is guaranteed to exist via _ensure_schema's ALTER TABLE
+            # migration; value is NULL for legacy rows ingested pre-hash.
+            source_hash=row["source_hash"] or "",
         )
 
     # --- Rubrics ---

@@ -28,7 +28,8 @@ logger = logging.getLogger("lazylabeltext")
 
 Stage = Literal["convert", "chunk", "label"]
 DocStage = Literal[
-    "idle", "convert", "chunk", "label", "done", "failed", "cancelled", "excluded"
+    "idle", "convert", "chunk", "label", "queued",
+    "done", "failed", "cancelled", "excluded",
 ]
 
 
@@ -82,8 +83,22 @@ class ParallelOrchestrator:
         self.settings = settings
 
         self._states: dict[int, DocState] = {}
-        self._states_lock = threading.Lock()
+        # RLock not Lock: the label-stage finalize updates per-doc state
+        # under this lock and then calls _emit (which also acquires the
+        # lock to snapshot the state). With a non-reentrant Lock that
+        # second acquire deadlocks the worker thread, freezing the GUI
+        # next time it tries set_inclusion (e.g. when the user clicks
+        # Cancel). RLock makes the re-entry from the same thread safe.
+        self._states_lock = threading.RLock()
         self._cancel_all = threading.Event()
+        # Track which docs are actively in a worker right now so cancel_all
+        # can immediately mark *queued* (not-yet-started) docs as cancelled
+        # without waiting for in-flight LLM calls to finish.
+        self._running_doc_ids: set[int] = set()
+        self._running_lock = threading.Lock()
+        # Callbacks for the currently-running stage; used by cancel_all to
+        # emit state updates for the docs it transitions to "cancelled".
+        self._active_callbacks: Callbacks | None = None
 
     # ------------------------------------------------------------------ state
 
@@ -179,7 +194,31 @@ class ParallelOrchestrator:
             return not s.included
 
     def cancel_all(self) -> None:
+        """Request cancel + immediately mark queued docs as cancelled.
+
+        Running docs (those a worker has already entered) keep their
+        current state until the worker hits the next chunk-boundary check
+        and bails — Python can't interrupt the in-flight LLM call. But
+        queued docs (still waiting in the executor's pool) get visibly
+        cancelled in the strip *now* instead of after the executor drains.
+        """
         self._cancel_all.set()
+        with self._running_lock:
+            running = set(self._running_doc_ids)
+        cancelled_ids: list[int] = []
+        with self._states_lock:
+            for doc_id, s in self._states.items():
+                if doc_id in running:
+                    continue
+                if s.stage in ("queued", "label", "chunk", "convert"):
+                    s.stage = "cancelled"
+                    s.message = "cancelled before run"
+                    s.progress = 0.0
+                    cancelled_ids.append(doc_id)
+        cb = self._active_callbacks
+        if cb is not None and cb.on_doc_state is not None:
+            for doc_id in cancelled_ids:
+                self._emit(cb, doc_id)
 
     def cancel_doc(self, doc_id: int) -> None:
         # Same flag as exclude — orchestrator inspects this at the next
@@ -200,22 +239,30 @@ class ParallelOrchestrator:
         callbacks: Callbacks | None = None,
     ) -> StageResult:
         self._reset_cancel()
-        # Filter: only included, alive states. Failed-convert docs can still
-        # have convert re-run on them; excluded docs are skipped entirely.
-        with self._states_lock:
-            targets = [
-                self._states[d].doc_id
-                for d in doc_ids
-                if d in self._states and self._states[d].included
-            ]
+        with self._running_lock:
+            self._running_doc_ids.clear()
+        self._active_callbacks = callbacks
+        try:
+            # Filter: only included, alive states. Failed-convert docs can
+            # still have convert re-run on them; excluded docs are skipped.
+            with self._states_lock:
+                targets = [
+                    self._states[d].doc_id
+                    for d in doc_ids
+                    if d in self._states and self._states[d].included
+                ]
 
-        if stage == "convert":
-            return self._run_convert(targets, params, max_workers, callbacks)
-        if stage == "chunk":
-            return self._run_chunk(targets, params, max_workers, callbacks)
-        if stage == "label":
-            return self._run_label(targets, params, max_workers, callbacks)
-        raise ValueError(f"Unknown stage: {stage}")
+            if stage == "convert":
+                return self._run_convert(targets, params, max_workers, callbacks)
+            if stage == "chunk":
+                return self._run_chunk(targets, params, max_workers, callbacks)
+            if stage == "label":
+                return self._run_label(targets, params, max_workers, callbacks)
+            raise ValueError(f"Unknown stage: {stage}")
+        finally:
+            self._active_callbacks = None
+            with self._running_lock:
+                self._running_doc_ids.clear()
 
     def run_all_stages(
         self,
@@ -363,8 +410,20 @@ class ParallelOrchestrator:
         # get_chunks(doc_id) without a run_id returns every chunk ever
         # created, including stale ones, which would disagree with
         # chunk-mode (which always shows the latest run).
+        # Resume support: chunks already labeled for this rubric should be
+        # skipped on a re-run, not relabeled. Build a set of labeled chunk
+        # ids once, up front. After cancel + restart, the worker walks the
+        # chunk list as before but skips any chunk in this set, so the run
+        # picks up where the previous one left off.
+        labeled_chunk_ids: set[int] = set()
+        if rubric.id is not None:
+            for label in self.db.get_all_labels(rubric.id):
+                if label.chunk_id is not None:
+                    labeled_chunk_ids.add(label.chunk_id)
+
         chunks_by_doc: dict[int, list] = {}
         per_doc_total: dict[int, int] = {}
+        per_doc_resumed: dict[int, int] = {}
         for doc_id in doc_ids:
             runs = self.chunk_manager.get_chunking_runs(doc_id)
             if runs:
@@ -374,24 +433,50 @@ class ParallelOrchestrator:
                 chunks = []
             chunks_by_doc[doc_id] = chunks
             per_doc_total[doc_id] = len(chunks)
+            already = sum(
+                1 for ch in chunks if ch.id is not None and ch.id in labeled_chunk_ids
+            )
+            per_doc_resumed[doc_id] = already
             if not chunks:
                 self._set_stage(
                     doc_id, "done", progress=1.0, message="no chunks to label",
                 )
                 self._emit(callbacks, doc_id)
-            else:
+            elif already == len(chunks):
+                # All chunks already labeled — nothing to do for this doc.
                 self._set_stage(
-                    doc_id, "label", progress=0.0,
-                    message=f"queued {len(chunks)}",
+                    doc_id, "done", progress=1.0,
+                    message=f"{already} labeled",
+                )
+                self._emit(callbacks, doc_id)
+            else:
+                # "queued" instead of "label" so the strip badge can
+                # distinguish docs waiting in the executor pool from ones
+                # a worker is actively labeling. doc_worker flips the
+                # stage to "label" when it starts processing this doc.
+                progress0 = already / len(chunks) if chunks else 0.0
+                msg = (
+                    f"queued {len(chunks) - already} of {len(chunks)}"
+                    + (f" ({already} already labeled)" if already else "")
+                )
+                self._set_stage(
+                    doc_id, "queued", progress=progress0, message=msg,
                 )
                 self._emit(callbacks, doc_id)
 
-        # Only docs that actually have chunks get a worker task.
-        runnable_doc_ids = [d for d in doc_ids if chunks_by_doc.get(d)]
+        # Only docs that have at least one *unlabeled* chunk get a worker.
+        runnable_doc_ids = [
+            d for d in doc_ids
+            if chunks_by_doc.get(d)
+            and per_doc_resumed.get(d, 0) < per_doc_total.get(d, 0)
+        ]
         if not runnable_doc_ids:
             return result
 
-        per_doc_done: dict[int, int] = dict.fromkeys(per_doc_total, 0)
+        # per_doc_done counts total labeled chunks (resumed + this run) so
+        # the progress bar reflects the doc's *overall* labeling state, not
+        # just this run's contribution. Initialise with the resumed count.
+        per_doc_done: dict[int, int] = dict(per_doc_resumed)
         per_doc_failed: dict[int, int] = dict.fromkeys(per_doc_total, 0)
 
         def doc_worker(doc_id: int) -> tuple[int, bool, str | None]:
@@ -405,13 +490,55 @@ class ParallelOrchestrator:
                 self._emit(callbacks, doc_id)
                 return doc_id, False, "cancelled"
 
+            # Mark this doc "running" so cancel_all knows to leave its state
+            # alone (the worker will set the final state when it bails out
+            # at the next chunk boundary).
+            with self._running_lock:
+                self._running_doc_ids.add(doc_id)
+            try:
+                return _label_doc_body(doc_id)
+            finally:
+                with self._running_lock:
+                    self._running_doc_ids.discard(doc_id)
+
+        def _label_doc_body(doc_id: int) -> tuple[int, bool, str | None]:
             chunks = chunks_by_doc.get(doc_id, [])
             total_for_doc = per_doc_total[doc_id]
+            # Flip queued → label now that we're actually processing this
+            # doc. The strip badge changes from "queued" to "labeling" so
+            # the user can see which docs are in flight vs waiting.
+            done0 = per_doc_done[doc_id]
+            self._set_stage(
+                doc_id, "label",
+                progress=(done0 / total_for_doc) if total_for_doc else 0.0,
+                message=f"labeling {done0}/{total_for_doc}",
+            )
+            self._emit(callbacks, doc_id)
             last_err: str | None = None
             for ch in chunks:
+                # Skip chunks that already have a label for this rubric —
+                # this is what makes cancel + resume pick up where it left
+                # off instead of relabeling everything from scratch.
+                if ch.id is not None and ch.id in labeled_chunk_ids:
+                    continue
                 # Honor cancel between chunks so the user can pull a doc
                 # out of an in-flight run without waiting for it to finish.
                 if self._per_doc_cancelled(doc_id):
+                    # Update state explicitly so the strip never sees a
+                    # bailed-mid-doc row stuck on its previous "labeling
+                    # K/N" badge until finalize runs (which is also after
+                    # all *other* workers finish).
+                    done = per_doc_done[doc_id]
+                    fail = per_doc_failed[doc_id]
+                    self._set_stage(
+                        doc_id, "cancelled",
+                        progress=(done + fail) / total_for_doc if total_for_doc else 0.0,
+                        message=(
+                            f"cancelled at {done + fail}/{total_for_doc}"
+                            + (f", {done} labeled" if done else "")
+                        ),
+                    )
+                    self._emit(callbacks, doc_id)
                     return doc_id, False, "cancelled"
                 try:
                     self.label_manager.label_chunk(ch, rubric)

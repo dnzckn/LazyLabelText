@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import (
@@ -105,11 +106,27 @@ class ExportModeWidget(BaseMode):
             return
 
         fmt = self.format_combo.currentData()
-        ext_map = {ExportFormat.JSON: "JSON (*.json)"}
-        filter_str = ext_map.get(fmt, "All (*)")
+        ext_map = {ExportFormat.JSON: ("JSON (*.json)", "json")}
+        filter_str, ext = ext_map.get(fmt, ("All (*)", "out"))
+
+        # Default the dialog to the project's output directory — for folder
+        # mode that's the corpus folder; for docmap mode it's the user-chosen
+        # output dir where project.db lives. Falls back to home if neither is
+        # set (no project loaded).
+        s = self.ctx.settings
+        default_dir = ""
+        if s is not None:
+            default_dir = (
+                getattr(s, "last_project_output", "")
+                or getattr(s, "last_project_path", "")
+            )
+        default_name = f"labeled_corpus.{ext}"
+        default_path = (
+            str(Path(default_dir) / default_name) if default_dir else default_name
+        )
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Corpus", "labeled_corpus.json", filter_str
+            self, "Export Corpus", default_path, filter_str
         )
         if not path:
             return

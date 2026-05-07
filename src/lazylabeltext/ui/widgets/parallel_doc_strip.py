@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 _STAGE_COLORS = {
     "idle": "#888",
+    "queued": "#7a7a8f",
     "convert": "#5c8fbf",
     "chunk": "#7faf5c",
     "label": "#bf8f5c",
@@ -41,6 +42,7 @@ _STAGE_COLORS = {
 
 _STAGE_LABELS = {
     "idle": "—",
+    "queued": "queued",
     "convert": "converting",
     "chunk": "chunking",
     "label": "labeling",
@@ -94,12 +96,16 @@ class _DocRow(QWidget):
 
     def update_state(self, state: DocState) -> None:
         self.check.setChecked(state.included)
-        stage = "excluded" if not state.included and state.stage == "idle" else state.stage
+        # Unchecked docs always show "excluded" — the prior stage is
+        # irrelevant once the user has opted them out of the next run.
+        stage = "excluded" if not state.included else state.stage
         color = _STAGE_COLORS.get(stage, "#888")
         label = _STAGE_LABELS.get(stage, stage)
         self.badge.setText(f"●{label}")
         self.badge.setStyleSheet(f"color: {color}; font-size: 10px;")
 
+        # Show progress only while actually working a doc — queued/idle
+        # don't have meaningful progress yet.
         is_running = state.stage in ("convert", "chunk", "label")
         self.progress.setVisible(is_running)
         if is_running:

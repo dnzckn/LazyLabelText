@@ -233,6 +233,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         """Wire up signal-slot connections."""
         self.left_panel.open_folder_requested.connect(self._open_folder_dialog)
+        self.left_panel.open_docmap_requested.connect(self._open_docmap_dialog)
         self.left_panel.document_selected.connect(self._on_document_selected)
         self.left_panel.reset_project_requested.connect(self._reset_project)
         self.left_panel.document_clear_requested.connect(
@@ -279,8 +280,93 @@ class MainWindow(QMainWindow):
     # --- Project management ---
 
     def open_project(self, folder_path: str) -> None:
-        """Open or create a project in the given folder."""
+        """Open or create a folder-backed project."""
         db_path = Path(folder_path) / "project.db"
+        existing_count = self._init_project_at(
+            db_path=db_path, title_label=Path(folder_path).name,
+        )
+        # Persist as a folder-style project for auto-reopen.
+        self.settings.last_project_kind = "folder"
+        self.settings.last_project_path = folder_path
+        self.settings.last_project_output = folder_path
+        self.settings.last_docmap_path = ""
+        self.settings.save_to_file(str(self.paths.settings_file))
+
+        if self.document_manager is None:
+            return
+        try:
+            paths = self.document_manager.find_supported_files(folder_path)
+        except FileNotFoundError as e:
+            self.notification_manager.show_error(str(e))
+            return
+        self._start_conversion_for_paths(paths, existing_count)
+
+    def open_project_from_docmap(
+        self, docmap_path: str, output_dir: str
+    ) -> None:
+        """Open or create a doc-map-backed project.
+
+        Source documents stay where they live; only project.db lives in
+        ``output_dir``. The doc-map is re-resolved against the filesystem
+        on every open, so newly-added files matching its patterns are
+        picked up automatically.
+        """
+        from lazylabeltext.core.doc_map import DocMapError
+
+        out = Path(output_dir)
+        try:
+            out.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            self.notification_manager.show_error(
+                f"Could not create output dir {out}: {e}"
+            )
+            return
+        db_path = out / "project.db"
+
+        existing_count = self._init_project_at(
+            db_path=db_path, title_label=Path(docmap_path).name,
+        )
+        self.settings.last_project_kind = "docmap"
+        self.settings.last_docmap_path = str(Path(docmap_path).resolve())
+        self.settings.last_project_output = str(out.resolve())
+        self.settings.last_project_path = ""  # only meaningful in folder mode
+        self.settings.save_to_file(str(self.paths.settings_file))
+
+        if self.document_manager is None:
+            return
+        try:
+            paths, result = (
+                self.document_manager.find_supported_files_from_docmap(
+                    docmap_path
+                )
+            )
+        except DocMapError as e:
+            self.notification_manager.show_error(f"Doc map error: {e}")
+            return
+
+        # Surface any include patterns that matched zero files so the user
+        # knows their map is partly stale (renamed dir, typo, etc.).
+        for entry in result.unmatched_patterns:
+            logger.warning(
+                "Doc map %s:%d pattern %r matched no files",
+                docmap_path, entry.line_no, entry.pattern,
+            )
+        if result.unmatched_patterns:
+            self.notification_manager.show_warning(
+                f"{len(result.unmatched_patterns)} doc-map pattern(s) "
+                "matched no files (see log)"
+            )
+
+        self._start_conversion_for_paths(paths, existing_count)
+
+    def _init_project_at(self, db_path: Path, title_label: str) -> int:
+        """Open the database, wire managers + context, return existing-doc count.
+
+        Shared between folder-open and docmap-open flows. Returns the count
+        of documents already persisted in the DB so the caller can craft a
+        useful "Loaded N docs" toast after conversion completes.
+        """
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         self.database = Database(str(db_path))
 
         # Initialize managers
@@ -325,41 +411,33 @@ class MainWindow(QMainWindow):
         self._init_mode_widgets()
 
         # Step 1 of the workflow is converting — open there by default.
-        # Tab order Convert → Rubric → Chunk → Label → Results → Propagation
-        # → Export mirrors the labeling workflow.
         self.mode_manager.set_mode("convert")
-
-        # Update stats
         self._update_stats()
 
-        # Save last project
-        self.settings.last_project_path = folder_path
-        self.settings.save_to_file(str(self.paths.settings_file))
+        self.setWindowTitle(f"{self._title_base} — {title_label}")
+        return len(existing_docs)
 
-        self.setWindowTitle(f"{self._title_base} — {Path(folder_path).name}")
-
-        # Convert any new files in the background so the UI stays responsive,
-        # especially with high-fidelity (docling) conversion enabled.
-        self._start_conversion_for_folder(folder_path, len(existing_docs))
-
-    def _start_conversion_for_folder(
-        self, folder_path: str, existing_count: int
+    def _start_conversion_for_paths(
+        self, all_paths: list[str], existing_count: int
     ) -> None:
-        """Enumerate files in folder and convert any new ones in a worker."""
+        """Convert any new paths in a worker. Source can be folder or docmap."""
         if self.document_manager is None:
             return
-        try:
-            all_paths = self.document_manager.find_supported_files(folder_path)
-        except FileNotFoundError as e:
-            self.notification_manager.show_error(str(e))
-            return
 
-        existing_names = {
-            d.filename for d in self.document_manager.get_all_documents()
-        }
-        new_paths = [
-            p for p in all_paths if Path(p).name not in existing_names
-        ]
+        # Per-content dedupe: every conversion call inside load_single hashes
+        # its source and looks the doc up by SHA256. Since identity is the
+        # content hash (not the filename), main_window doesn't need to
+        # filter out anything here — moves are silently merged, and two
+        # genuinely-different files that share a basename are loaded as
+        # separate rows. The only thing we still need to guard against is
+        # *the same physical path* listed twice in this run's paths.
+        seen_paths: set[str] = set()
+        new_paths: list[str] = []
+        for p in all_paths:
+            if p in seen_paths:
+                continue
+            seen_paths.add(p)
+            new_paths.append(p)
 
         if not new_paths:
             self.notification_manager.show_success(
@@ -376,7 +454,13 @@ class MainWindow(QMainWindow):
         progress.setAutoReset(False)
         progress.setValue(0)
 
-        worker = ConversionWorker(self.document_manager, new_paths, parent=self)
+        max_workers = max(
+            1, getattr(self.settings, "conversion_workers", 1)
+        )
+        worker = ConversionWorker(
+            self.document_manager, new_paths,
+            max_workers=max_workers, parent=self,
+        )
 
         def _on_progress(current: int, total: int) -> None:
             progress.setMaximum(total)
@@ -654,6 +738,30 @@ class MainWindow(QMainWindow):
         if folder:
             self.open_project(folder)
 
+    def _open_docmap_dialog(self) -> None:
+        """Pick a doc-map file + an output dir, then open the project.
+
+        Two-step picker so the user explicitly chooses where the project
+        database lives — doc-map projects don't have a "corpus folder" we
+        could implicitly drop project.db into.
+        """
+        docmap_path, _ = QFileDialog.getOpenFileName(
+            self, "Open Doc Map",
+            "",
+            "Doc map (*.docmap *.txt);;All files (*)",
+        )
+        if not docmap_path:
+            return
+        # Default the output-dir picker to the docmap's parent dir.
+        default_out = str(Path(docmap_path).resolve().parent)
+        output_dir = QFileDialog.getExistingDirectory(
+            self, "Choose project output directory (project.db lives here)",
+            default_out,
+        )
+        if not output_dir:
+            return
+        self.open_project_from_docmap(docmap_path, output_dir)
+
     def _open_settings(self) -> None:
         dialog = ProviderSettingsDialog(self.settings, self)
         if dialog.exec():
@@ -695,7 +803,12 @@ class MainWindow(QMainWindow):
         self._on_theme_toggled(not self.settings.dark_mode)
 
     def _save_project(self) -> None:
-        if self.settings.last_project_path:
+        # A project is "loaded" when either the folder path or the docmap
+        # path has been recorded; both flows write to settings on open.
+        if (
+            self.settings.last_project_path
+            or self.settings.last_docmap_path
+        ):
             self.settings.save_to_file(str(self.paths.settings_file))
             self.notification_manager.show_success("Project saved")
 

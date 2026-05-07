@@ -42,6 +42,28 @@ Pick the provider in **Provider Settings** inside the app, or set its env var be
 
 ---
 
+## Ingestion: folder *or* doc map
+
+Two ways to bring documents into a project:
+
+**Open Folder** (default). Point the app at a directory and it walks it recursively for supported files (`.pdf`, `.docx`, `.md`, `.markdown`, `.txt`). The project database lives at `<folder>/project.db`.
+
+**Open Doc Map** (alternative). Provide a small text file listing paths and globs from anywhere on disk — gitignore syntax, but include-by-default. Source documents stay where they are; you pick a separate output directory for `project.db`.
+
+```text
+# my-corpus.docmap
+~/Papers/2024/**/*.pdf
+~/Notes/**/*.md
+./local-handouts/*.docx
+
+# Excludes (override any matching include)
+!~/Papers/**/draft/**
+```
+
+`~`, `$VAR`, and relative paths (resolved from the docmap file's directory) all work. See [`docs/example.docmap`](docs/example.docmap) for a copy-paste starting point. Files with the same basename across multiple directories will be deduplicated (first wins, others logged as warnings).
+
+---
+
 ## Core Principles
 
 1. **Rubric is the artifact.** Categories, definitions, exemplars, and boundary cases are first-class versioned data — saved with every label and queryable downstream.
