@@ -2,17 +2,15 @@
 
 [![License](https://img.shields.io/github/license/dnzckn/LazyLabelText)](https://github.com/dnzckn/LazyLabelText/blob/main/LICENSE)
 
-**A desktop tool for zero-shot chunk classification with LLMs, with built-in multi-strategy chunking.**
+LazyLabelText is a desktop tool for zero-shot chunk classification with LLMs. It takes a folder (or doc map) of source documents, chunks them with a strategy you control, has an LLM propose labels against a structured rubric, and exports a labeled corpus ready for downstream pipelines (RAG, training data, audit). The tool's job ends at "labeled corpus" — it does not consolidate, synthesize, or generate.
 
-It takes a folder of source documents (PDF, Word, Markdown, plain text), helps a human + LLM team chunk them, label them against a structured rubric, and export the result as a labeled corpus ready to feed downstream systems: consolidation pipelines, RAG indexes, training data, knowledge graphs, audit corpora.
-
-The tool's job ends at "labeled corpus." It does not consolidate, synthesize, or generate — those are downstream concerns and belong in separate tools.
+<img src="https://raw.githubusercontent.com/dnzckn/LazyLabelText/main/src/lazylabeltext/demo_pictures/parallel_demo.gif"/>
 
 ---
 
 ## Get Started
 
-**Install (everything in one shot — LLM providers, local embeddings, high-fidelity conversion):**
+**Install** (everything in one shot — LLM providers, local embeddings, high-fidelity conversion):
 ```bash
 pip install -e .
 llt
@@ -26,7 +24,7 @@ pip install -e .
 llt
 ```
 
-**Requirements:** Python 3.10+. Configure providers via Provider Settings inside the app or via environment variables.
+**Requirements:** Python 3.10+. Configure LLM/embedding providers via Provider Settings inside the app or via environment variables.
 
 ### Supported Providers
 
@@ -35,20 +33,26 @@ llt
 | LLM | Anthropic (Claude) | `ANTHROPIC_API_KEY` | hosted |
 | LLM | OpenAI (GPT) | `OPENAI_API_KEY` | hosted |
 | LLM | Google (Gemini) | `GOOGLE_API_KEY` | hosted |
-| LLM | Ollama (Llama, Mistral, Gemma, Qwen, …) | — | local; needs an Ollama server, configure base URL in-app |
+| LLM | Azure OpenAI | env-driven | hosted; corporate-friendly |
+| LLM | Ollama (Llama / Mistral / Gemma / Qwen / …) | — | local; needs an Ollama server, configure base URL in-app |
 | Embedding | sentence-transformers | — | local; ~90 MB model downloaded on first use |
+| Embedding | OpenAI / Azure embeddings | shared with LLM env vars | hosted |
 
-Pick the provider in **Provider Settings** inside the app, or set its env var before launch. Switch between providers any time without re-labeling — the existing labels are preserved.
+Switching providers mid-project is safe — existing labels stay tagged with the model that produced them.
 
 ---
 
-## Ingestion: folder *or* doc map
+## Ingestion
 
-Two ways to bring documents into a project:
+Two ways to bring documents into a project — pick whichever fits how your data is laid out on disk.
 
-**Open Folder** (default). Point the app at a directory and it walks it recursively for supported files (`.pdf`, `.docx`, `.md`, `.markdown`, `.txt`). The project database lives at `<folder>/project.db`.
+### Open Folder
 
-**Open Doc Map** (alternative). Provide a small text file listing paths and globs from anywhere on disk — gitignore syntax, but include-by-default. Source documents stay where they are; you pick a separate output directory for `project.db`.
+Point the app at a directory; it walks recursively for `.pdf` / `.docx` / `.md` / `.markdown` / `.txt`. The project database lives at `<folder>/project.db`.
+
+### Open Doc Map
+
+Provide a small text file (gitignore syntax, but include-by-default) listing paths and globs from anywhere on disk. Source documents stay where they are; you pick a separate output directory for `project.db`. Useful when your corpus is scattered (`~/Papers`, `~/Notes`, `~/Work/Contracts`, …) and you don't want to copy or symlink it into one place.
 
 ```text
 # my-corpus.docmap
@@ -56,21 +60,31 @@ Two ways to bring documents into a project:
 ~/Notes/**/*.md
 ./local-handouts/*.docx
 
-# Excludes (override any matching include)
+# Excludes (override matching includes)
 !~/Papers/**/draft/**
 ```
 
-`~`, `$VAR`, and relative paths (resolved from the docmap file's directory) all work. See [`docs/example.docmap`](docs/example.docmap) for a copy-paste starting point. Files with the same basename across multiple directories will be deduplicated (first wins, others logged as warnings).
+`~`, `$VAR`, and relative paths (resolved from the docmap file's directory) all work. See [`docs/example.docmap`](docs/example.docmap) for a copy-paste starting point.
+
+### Document Identity
+
+Documents are deduped by **SHA256 of source bytes**, not filename. Same content moved to a new path → silently merged (chunks/labels preserved). Same basename, different content → loaded as separate rows.
 
 ---
 
-## Core Principles
+## Workflow
 
-1. **Rubric is the artifact.** Categories, definitions, exemplars, and boundary cases are first-class versioned data — saved with every label and queryable downstream.
-2. **Chunking is tunable and inspectable.** Pick a strategy (structural / semantic / hybrid / LLM), tune thresholds, see the chunks, re-chunk without leaving the page.
-3. **Humans confirm, LLM proposes.** Claude predicts; the human accepts, corrects, skips, flags, or discards. Every disagreement is captured.
-4. **Provenance is non-negotiable.** Every chunk carries source doc, char offsets, section path. Every label change is logged with timestamp and actor.
-5. **Local-first.** Documents never leave your machine. LLM calls are pluggable (Anthropic today; OpenAI / Ollama hooks reserved). Embeddings run locally via sentence-transformers.
+The app is organized as a sequence of stages — toolbar buttons or **F1–F7** hotkeys.
+
+| Stage | Hotkey | What it does |
+|---|---|---|
+| **Convert** | F1 | Convert source files to internal representation. PyMuPDF by default, optional **docling** high-fidelity for tables/figures, optional OCR for scanned PDFs. |
+| **Rubric** | F2 | Versioned editor for categories, definitions, exemplars, boundary cases, confidence thresholds. Coverage map flags dead / low-confidence / high-disagreement categories. |
+| **Chunk** | F3 | Pick a strategy (structural / semantic / hybrid / LLM), tune thresholds, see chunks live, re-chunk in place. |
+| **Label** | F4 | Per-document review with a timeline visualization. Accept (Space) / Correct (C) / Skip (S) / Flag (F) / Discard (D) / Drop DNBs. |
+| **Results** | F5 | Tabular browser of every labeled chunk; filter by document, category, review status. |
+| **Parallel** | F6 | Corpus-wide stage runner — convert / chunk / label / edit / bypass-approval across all docs. Per-doc collaborators, drill-in to any doc, live progress. |
+| **Export** | F7 | Export the labeled corpus to JSON + sidecar Parquet for embeddings. |
 
 ---
 
@@ -81,75 +95,49 @@ Two ways to bring documents into a project:
 | **structural** | Default. Splits on headings + paragraphs, enforces token bounds. | free |
 | **semantic** | Unstructured prose with topic shifts. Embeds each sentence, splits where cosine similarity drops. | one local embedding pass |
 | **hybrid** | General purpose. Structural pass first; semantic on oversized chunks. | embeddings on residuals only |
-| **llm** | Tabular / list-heavy / atomic-fact extraction. Sends each window to Claude for atomic-clause splits. | one Anthropic call per ~3000-token window |
+| **llm** | Tabular / list-heavy / atomic-fact extraction. Sends each window to the LLM for atomic-clause splits. | one LLM call per ~3000-token window |
 
-All strategies are picked from the dropdown in the Chunk tab. Re-running chunking on a document **replaces** prior chunks and labels for that document.
+Re-running chunking on a document **replaces** prior chunks and labels for that document.
+
+---
+
+## Parallel Mode
+
+Run the same stage across the whole corpus at once with a tunable scheduler:
+
+- **Workers** — total worker threads in the pool.
+- **Max workers per doc** — caps how many workers can label chunks of the same doc concurrently. `1` = one doc finishes at a time (good for reviewer ergonomics); `= Workers` = all workers focus on a single doc; in between = hybrid.
+- **Drill-in** — click any doc in the strip to view its converted text, chunks, or labels live. The right-side rubric panel is available the same way it is in plain Label mode.
+- **Bulk operations** — the **Edit** stage drops all DNB labels across the corpus (e.g. after expanding the rubric). The **Bypass approval** stage marks every unreviewed label as `bypassed` (distinct from `accepted` so downstream consumers can tell deliberate human approvals from bulk pass-throughs).
+- **DNB labels** — when the LLM judges a chunk doesn't fit any rubric category, the chunk gets a "DNB (does not belong)" label rather than being silently left blank. Rendered distinctly on the timeline so reviewers can tell "rejected by LLM" from "never labeled."
+
+Total parallelism (Workers × Max-per-doc) is bounded by your LLM provider's API rate limits. The app retries 429s with exponential backoff up to 8x.
 
 ---
 
 ## Export
 
-The labeled corpus exports as JSON (JSONL/Parquet/CSV planned). Each chunk record carries:
+The labeled corpus exports as **JSON** with a sidecar **Parquet** for chunk embeddings. Each chunk record carries:
 
 - `text`, `source` (filename, char_start, char_end, section_path), `token_count`
 - `chunk_type`, `boundary_confidence`, `manual_override`
 - `label.rubric_version`, `label.categories`, `label.confidence`, `label.composite_confidence`, `label.knn_agreement`, `label.rationale`, `label.llm_model`
-- `label.human_review` (when reviewed): `action`, `final_categories`, `reviewer`, `notes`, `reviewed_at`
+- `label.human_review` (when reviewed): `action` (accept / correct / skip / flag / bypassed), `final_categories`, `reviewer`, `notes`, `reviewed_at`
 
-The export bundle includes a manifest with corpus statistics, the rubric used, and tool version, so downstream consumers can reproduce or audit.
+The export bundle includes a manifest with corpus statistics, the rubric version, and tool version so downstream consumers can audit or reproduce.
+
+---
+
+## Core Principles
+
+1. **Rubric is the artifact.** Categories, definitions, exemplars, and boundary cases are first-class versioned data — saved with every label and queryable downstream.
+2. **Chunking is tunable and inspectable.** Pick a strategy, tune thresholds, see the chunks, re-chunk without leaving the page.
+3. **Humans confirm, LLM proposes.** The LLM predicts; the human accepts, corrects, skips, flags, discards, or bulk-bypasses. Every disagreement is captured.
+4. **Provenance is non-negotiable.** Every chunk carries source doc, char offsets, section path, content hash. Every label change is logged with timestamp and actor.
+5. **Local-first.** Source documents never leave your machine. Embeddings run locally via sentence-transformers. Only LLM classification calls go off-machine, and only by your choice of provider.
 
 ---
 
 ## Documentation
 
 - [GitHub Issues](https://github.com/dnzckn/LazyLabelText/issues) — bug reports / feature requests
-
----
-
-## Tab Walkthrough
-
-The application is organized as seven tabs across the top of the main window. Switch between them with the toolbar buttons or the **F1–F7** hotkeys. Each tab corresponds to one stage of the labeling workflow.
-
-### Convert (F1)
-
-<img src="src/lazylabeltext/pictures/convert_tab.png" width="800"/>
-
-Loads documents from a folder, identifies their format (PDF, DOCX, HTML, Markdown, plain text), and converts each to an internal representation that preserves heading hierarchy, page or section boundaries, and original character offsets for citation. The left panel shows each document's parse status; the center pane shows source vs. converted text side-by-side so you can verify the conversion before committing to it.
-
-### Rubric (F2)
-
-<img src="src/lazylabeltext/pictures/rubric_tab.png" width="800"/>
-
-Structured editor for the labeling rubric — categories, definitions, exemplars, boundary cases, and confidence thresholds. Each saved edit creates a new rubric version, so old labels stay tagged with the version that produced them. The right pane shows a **corpus coverage map** for the active rubric: per-category counts, average confidence, document spread, and the human-disagreement rate. It flags categories that are dead (zero usage), low-confidence (LLM consistently uncertain), or high-disagreement (humans keep correcting them) so you know which definitions need work.
-
-### Chunk (F3)
-
-<img src="src/lazylabeltext/pictures/chunk_tab.png" width="800"/>
-
-Picks a chunking strategy (structural / semantic / hybrid / LLM) and tunes its parameters: min/max tokens, heading levels, similarity threshold for the embedding-based strategies. The center pane shows the resulting chunks as cards or as an inline overlay on the source text. The strategy combo and parameter sliders update live; clicking **Run Chunking** commits the new chunks for that document and clears any previous labels (since they were labeled against a different chunking).
-
-### Label (F4)
-
-<img src="src/lazylabeltext/pictures/label_tab.png" width="800"/>
-
-Per-document chunk review with a **timeline visualization** at the top: one cell per chunk, color-coded by predicted category, with a blue marker on the current chunk. Click any cell to jump there; **Prev / Next** buttons or **Left / Right arrows** step through. The center shows the current chunk's text, the LLM's predicted label and confidence, the rationale, and source citation. Action buttons commit a human review: **Accept** (keep as predicted), **Correct** (multi-select picker for the right categories), **Skip**, **Flag**, or **Discard** (delete the label so the chunk re-enters the unlabeled pool). **Run LLM Labeling** batch-labels every unlabeled chunk in the current document; a background worker keeps the UI responsive and the timeline updates as each chunk lands.
-
-### Results (F5)
-
-<img src="src/lazylabeltext/pictures/results_tab.png" width="800"/>
-
-Tabular browser of every labeled chunk in the project. The dashboard at the top shows total chunks, labeled count, reviewed count, and average confidence. The table is filterable by document, category, and review status, with a detail panel on the side that shows the chunk text, confidence bars, and rationale for any selected row. Manual reviews surface as 100% confidence with the human-corrected categories — provenance is preserved by the underlying schema (the LLM's original prediction is kept in `human_review` block of the export).
-
-### Propagation (F6)
-
-<img src="src/lazylabeltext/pictures/propagation_tab.png" width="800"/>
-
-Once you've tuned chunking parameters and the rubric on a single document, propagation applies the same configuration across **every** document in the project. The status table shows per-document chunk and label counts; **Propagate All** kicks off a background worker that chunks and labels each remaining document in order, with a cancel button. Use this only after the rubric is settled — re-running propagation replaces prior chunks and labels.
-
-### Export (F7)
-
-<img src="src/lazylabeltext/pictures/export_tab.png" width="800"/>
-
-Exports the labeled corpus to a downstream-ready format. Pick a format (JSON today; JSONL / Parquet / CSV / custom Python planned), preview the output, and save. The export bundle includes the rubric version that produced the labels and a manifest with corpus statistics, so downstream consumers can audit or reproduce. Each chunk record is self-describing — it carries its rubric version inline, so a JSONL stream stays meaningful even when read line-by-line.
-
----
