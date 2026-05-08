@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazylabeltext"
-version = "1.0.7"
+version = "1.0.8"
 description = "A desktop tool for zero-shot chunk classification with LLMs, with built-in document conversion and multi-strategy chunking."
 readme = "README.md"
 license = "Apache-2.0"
@@ -34,7 +34,6 @@ dependencies = [
     "anthropic>=0.39.0",
     "openai>=1.40.0",
     "google-genai>=1.0.0",
-    "langchain-openai>=0.2.0",
     "httpx[http2]>=0.27.0",
     "sentence-transformers>=3.0.0",
     "torch>=2.7.1",

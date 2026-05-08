@@ -31,10 +31,10 @@ def create_llm_provider(
             from lazylabeltext.core.providers.ollama_provider import OllamaProvider
             return OllamaProvider(**kwargs)  # type: ignore[arg-type]
         if provider_type in ("azure", "azure-openai"):
-            from lazylabeltext.core.providers.azure_langchain_provider import (
-                AzureLangChainProvider,
+            from lazylabeltext.core.providers.azure_openai_provider import (
+                AzureOpenAIProvider,
             )
-            return AzureLangChainProvider(**kwargs)  # type: ignore[arg-type]
+            return AzureOpenAIProvider(**kwargs)  # type: ignore[arg-type]
     except Exception:
         return None
     return None

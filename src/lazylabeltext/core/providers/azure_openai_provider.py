@@ -1,12 +1,13 @@
-"""Azure OpenAI LLM provider via langchain_openai.AzureChatOpenAI.
+"""Azure OpenAI LLM provider via the `openai` SDK's AzureOpenAI client.
 
-Designed for corporate / Azure deployments where:
-  - Auth lives in env vars (AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT)
-    so secrets never enter app config.
-  - A custom httpx.Client is required for http2 / non-default SSL verify
-    (self-signed CA, MITM proxy, etc.).
-  - The user picks deployment name + api_version per-session in the UI,
-    so swapping models is a settings change, not a code change.
+Goes direct to the Azure REST endpoint — no langchain. Avoiding langchain
+matters for two reasons: it pulls in `transformers` (and through it,
+`torch`) at import time for token-counting utilities we don't need; and
+its message wrapper layer is dead weight when our message shape is just
+[{role, content}, ...].
+
+Same env-var fallback chain as the embedding sibling: explicit fields
+first, then env vars (multiple common names), then empty.
 """
 
 from __future__ import annotations
@@ -24,8 +25,8 @@ from lazylabeltext.core.providers._classification import (
 logger = logging.getLogger("lazylabeltext")
 
 
-class AzureLangChainProvider:
-    """LLM classification using Azure OpenAI via LangChain's AzureChatOpenAI."""
+class AzureOpenAIProvider:
+    """LLM classification via openai.AzureOpenAI (no langchain)."""
 
     def __init__(
         self,
@@ -38,31 +39,20 @@ class AzureLangChainProvider:
         use_env_credentials: bool = True,
     ) -> None:
         self.api_key = api_key
-        self.model = model  # azure deployment name (often == openai model name)
+        self.model = model  # azure deployment name
         self.api_version = api_version
         self.azure_endpoint = azure_endpoint
         self.verify_ssl = verify_ssl
         self.http2 = http2
         self.use_env_credentials = use_env_credentials
-        self._llm = None
-        self._llm_lock = threading.Lock()
+        self._client = None
+        self._client_lock = threading.Lock()
 
-    # Env-var fallback chain matches what langchain-openai itself looks for,
-    # so the env-mode toggle behaves the same as the bare AzureChatOpenAI()
-    # constructor people use in standalone scripts.
     _ENV_KEY_VARS = ("AZURE_OPENAI_API_KEY", "OPENAI_API_KEY")
     _ENV_ENDPOINT_VARS = ("AZURE_OPENAI_ENDPOINT", "OPENAI_API_BASE")
     _ENV_VERSION_VARS = ("OPENAI_API_VERSION", "AZURE_OPENAI_API_VERSION")
 
     def _resolve_credentials(self) -> tuple[str, str, str]:
-        """Resolve (endpoint, api_key, api_version) — explicit fields first,
-        then env vars (multiple common names), then empty.
-
-        Empty values are NOT an error here: when use_env_credentials is on,
-        we'd rather hand the empty values to AzureChatOpenAI and let its own
-        validators raise a clear pydantic error than reject upfront. Only
-        api_version is enforced because it's not consistently env-resolved.
-        """
         import os
 
         def _first_env(names: tuple[str, ...]) -> str:
@@ -90,11 +80,6 @@ class AzureLangChainProvider:
         return endpoint, api_key, api_version
 
     def _visible_azure_env_summary(self) -> str:
-        """List which Azure-relevant env vars are visible to this process.
-
-        Used in error messages so the user can see at a glance whether the
-        env var they exported is actually reaching the running app.
-        """
         import os
 
         names = list(self._ENV_KEY_VARS) + list(self._ENV_ENDPOINT_VARS) + list(
@@ -107,19 +92,18 @@ class AzureLangChainProvider:
             f"not set in process env: {missing}"
         )
 
-    def _get_llm(self):
-        if self._llm is not None:
-            return self._llm
-        with self._llm_lock:
-            if self._llm is not None:
-                return self._llm
+    def _get_client(self):
+        if self._client is not None:
+            return self._client
+        with self._client_lock:
+            if self._client is not None:
+                return self._client
 
             try:
-                from langchain_openai import AzureChatOpenAI
+                from openai import AzureOpenAI
             except ImportError as e:
                 raise LLMProviderError(
-                    "azure",
-                    "langchain-openai not installed (pip install langchain-openai httpx)",
+                    "azure", "openai package not installed (pip install openai httpx)"
                 ) from e
             try:
                 import httpx
@@ -149,9 +133,11 @@ class AzureLangChainProvider:
                     ) from e
 
             kwargs: dict = {
-                "openai_api_version": api_version,
-                "azure_deployment": self.model,
+                "api_version": api_version,
                 "http_client": httpx_client,
+                # max_retries=8 (vs SDK default 2) — gives transient 429
+                # rate-limit responses more chances to recover.
+                "max_retries": 8,
             }
             if endpoint:
                 kwargs["azure_endpoint"] = endpoint
@@ -159,7 +145,7 @@ class AzureLangChainProvider:
                 kwargs["api_key"] = api_key
 
             try:
-                self._llm = AzureChatOpenAI(**kwargs)
+                self._client = AzureOpenAI(**kwargs)
             except Exception as e:
                 extra = ""
                 if self.use_env_credentials:
@@ -168,49 +154,61 @@ class AzureLangChainProvider:
                         f"{self._visible_azure_env_summary()}"
                     )
                 raise LLMProviderError("azure", str(e) + extra) from e
-        return self._llm
+        return self._client
 
     def complete(self, prompt: str, max_tokens: int = 4096) -> str:
-        llm = self._get_llm()
+        client = self._get_client()
         try:
-            result = llm.invoke(prompt)
+            response = client.chat.completions.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
         except Exception as e:
             raise LLMProviderError("azure", str(e)) from e
-        return getattr(result, "content", str(result))
+        return response.choices[0].message.content or ""
 
     def classify(
         self, chunk_text: str, categories: list[Category]
     ) -> ClassificationResult:
-        llm = self._get_llm()
+        client = self._get_client()
         system_prompt = build_classification_system_prompt(categories)
         user_message = f"Classify this text chunk:\n\n{chunk_text}"
 
         try:
-            from langchain_core.messages import HumanMessage, SystemMessage
-
-            result = llm.invoke(
-                [
-                    SystemMessage(content=system_prompt),
-                    HumanMessage(content=user_message),
-                ]
+            response = client.chat.completions.create(
+                model=self.model,
+                max_tokens=1024,
+                logprobs=True,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
             )
-        except ImportError:
-            # Fall back to a single concatenated prompt if langchain_core isn't
-            # importable for some reason (unlikely — it's a transitive dep).
-            try:
-                result = llm.invoke(f"{system_prompt}\n\n{user_message}")
-            except Exception as e:
-                raise LLMProviderError("azure", str(e)) from e
         except Exception as e:
             raise LLMProviderError("azure", str(e)) from e
 
-        text = getattr(result, "content", str(result))
-        return parse_classification_response(text, categories)
+        result = parse_classification_response(
+            response.choices[0].message.content or "", categories
+        )
+        try:
+            content = response.choices[0].logprobs.content  # type: ignore[union-attr]
+            if content:
+                lp_values = [tok.logprob for tok in content if tok.logprob is not None]
+                if lp_values:
+                    result.avg_logprob = sum(lp_values) / len(lp_values)
+        except Exception:
+            pass
+        return result
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            llm = self._get_llm()
-            llm.invoke("Say OK")
+            client = self._get_client()
+            client.chat.completions.create(
+                model=self.model,
+                max_tokens=10,
+                messages=[{"role": "user", "content": "Say OK"}],
+            )
             return (
                 True,
                 f"Connected to deployment '{self.model}' (api {self.api_version})",

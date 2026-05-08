@@ -1,6 +1,11 @@
-"""Azure OpenAI embedding provider via langchain_openai.AzureOpenAIEmbeddings.
+"""Azure OpenAI embedding provider via the `openai` SDK's AzureOpenAI client.
 
-Pairs naturally with AzureLangChainProvider — same env-var auth, same
+Direct Azure REST — no langchain. langchain_openai's import chain pulls
+in `transformers` (and through it `torch`) for token-counting utilities;
+that's a heavy and irrelevant dep for an HTTP embedding call. Going
+through openai.AzureOpenAI keeps the embedding path zero-torch.
+
+Pairs naturally with AzureOpenAIProvider — same env-var auth, same
 endpoint, same SSL / proxy story. Default deployment is `text-embedding-ada-002`.
 """
 
@@ -16,7 +21,7 @@ logger = logging.getLogger("lazylabeltext")
 
 
 class AzureEmbeddingProvider:
-    """Embedding provider using Azure OpenAI via LangChain."""
+    """Embedding provider via openai.AzureOpenAI (no langchain)."""
 
     def __init__(
         self,
@@ -42,7 +47,7 @@ class AzureEmbeddingProvider:
     _ENV_VERSION_VARS = ("OPENAI_API_VERSION", "AZURE_OPENAI_API_VERSION")
 
     def _resolve_credentials(self) -> tuple[str, str, str]:
-        """Same env-var fallback chain as AzureLangChainProvider."""
+        """Same env-var fallback chain as AzureOpenAIProvider."""
         import os
 
         def _first_env(names: tuple[str, ...]) -> str:
@@ -74,11 +79,11 @@ class AzureEmbeddingProvider:
             return self._client
 
         try:
-            from langchain_openai import AzureOpenAIEmbeddings
+            from openai import AzureOpenAI
         except ImportError as e:
             raise EmbeddingProviderError(
                 "azure-embeddings",
-                "langchain-openai not installed (pip install langchain-openai httpx)",
+                "openai package not installed (pip install openai httpx)",
             ) from e
         try:
             import httpx
@@ -103,17 +108,11 @@ class AzureEmbeddingProvider:
                 ) from e
 
         kwargs: dict = {
-            "openai_api_version": api_version,
-            "azure_deployment": self.model_name,
+            "api_version": api_version,
             "http_client": httpx_client,
-            # langchain's OpenAIEmbeddings uses tiktoken internally to
-            # batch inputs by token count. tiktoken fetches its BPE
-            # encoder from openaipublic.blob.core.windows.net on first
-            # use, and that fetch happens outside our configured
-            # httpx_client (so verify_ssl / proxy settings don't apply).
-            # Setting tiktoken_enabled=False makes langchain fall back to
-            # a length-based batching heuristic — no tiktoken download.
-            "tiktoken_enabled": False,
+            # max_retries=8 (vs SDK default 2) — same rationale as the LLM
+            # client; gives transient 429 responses more chances to recover.
+            "max_retries": 8,
         }
         if endpoint:
             kwargs["azure_endpoint"] = endpoint
@@ -121,7 +120,7 @@ class AzureEmbeddingProvider:
             kwargs["api_key"] = api_key
 
         try:
-            self._client = AzureOpenAIEmbeddings(**kwargs)
+            self._client = AzureOpenAI(**kwargs)
         except Exception as e:
             extra = ""
             if self.use_env_credentials:
@@ -142,18 +141,24 @@ class AzureEmbeddingProvider:
     def encode(self, texts: list[str]) -> np.ndarray:
         client = self._get_client()
         try:
-            vectors = client.embed_documents(list(texts))
+            response = client.embeddings.create(
+                model=self.model_name,
+                input=list(texts),
+            )
         except Exception as e:
             raise EmbeddingProviderError("azure-embeddings", str(e)) from e
-        return np.array(vectors, dtype=np.float32)
+        return np.array([d.embedding for d in response.data], dtype=np.float32)
 
     def encode_one(self, text: str) -> np.ndarray:
         client = self._get_client()
         try:
-            vector = client.embed_query(text)
+            response = client.embeddings.create(
+                model=self.model_name,
+                input=[text],
+            )
         except Exception as e:
             raise EmbeddingProviderError("azure-embeddings", str(e)) from e
-        return np.array(vector, dtype=np.float32)
+        return np.array(response.data[0].embedding, dtype=np.float32)
 
     def is_loaded(self) -> bool:
         return self._client is not None

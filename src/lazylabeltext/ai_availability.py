@@ -1,10 +1,10 @@
 """Detect availability of optional AI dependencies.
 
 Uses importlib.util.find_spec so checking availability does NOT trigger
-the expensive cold imports of torch / transformers / langchain. On
-Windows in particular, importing sentence_transformers can take 15–30s
-on first run because of DLL loading; doing that during MainWindow
-construction looks like the app is hung. Lazy detection costs ~ms.
+the expensive cold imports of torch / transformers. On Windows in
+particular, importing sentence_transformers can take 15–30s on first
+run because of DLL loading; doing that during MainWindow construction
+looks like the app is hung. Lazy detection costs ~ms.
 """
 
 from __future__ import annotations
@@ -21,25 +21,23 @@ def _has(pkg: str) -> bool:
 
 
 # Any path to LLM classification — at least one of these must be installed
-# for the labeling pipeline to work.
+# for the labeling pipeline to work. Azure goes through the openai SDK too.
 LLM_AVAILABLE = any(
     _has(p)
     for p in (
         "anthropic",
         "openai",
         "google.genai",  # google-genai exposes itself as `google.genai`
-        "langchain_openai",
     )
 )
 
-# Any path to embeddings — sentence-transformers (local), OpenAI (hosted),
-# or langchain_openai (Azure).
+# Any path to embeddings — sentence-transformers (local) or openai (hosted,
+# covers both OpenAI and Azure deployments).
 EMBEDDING_AVAILABLE = any(
     _has(p)
     for p in (
         "sentence_transformers",
         "openai",
-        "langchain_openai",
     )
 )
 
