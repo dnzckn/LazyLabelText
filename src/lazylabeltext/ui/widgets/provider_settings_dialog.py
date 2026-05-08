@@ -372,17 +372,26 @@ class ProviderSettingsDialog(QDialog):
         if path:
             self.dotenv_path_edit.setText(path)
 
+    def _external_credentials_active(self) -> bool:
+        # Either the env-vars toggle or the .env loader counts as
+        # "credentials are delivered via os.environ" — both end up putting
+        # keys into env vars that the provider reads.
+        return (
+            self.use_env_check.isChecked() or self.dotenv_check.isChecked()
+        )
+
     def _on_use_env_toggled(self, checked: bool) -> None:
         provider = self.llm_provider_combo.currentText()
-        # When env-mode is on AND the provider supports key auth, hide the key
-        # input entirely so the user can't accidentally save a secret.
+        # When credentials come from env vars (either OS-level env or a loaded
+        # .env), hide the key input so the user can't accidentally save a secret.
         provider_uses_key = provider in ("anthropic", "openai", "google", "azure")
-        show_key = provider_uses_key and not checked
+        env_mode = self._external_credentials_active()
+        show_key = provider_uses_key and not env_mode
         self.api_key_edit.setVisible(show_key)
         self.show_key_btn.setVisible(show_key)
         self.api_key_label.setVisible(provider_uses_key)
         if provider_uses_key:
-            if checked:
+            if env_mode:
                 env_var_hint = {
                     "anthropic": "ANTHROPIC_API_KEY",
                     "openai": "OPENAI_API_KEY",
@@ -398,9 +407,9 @@ class ProviderSettingsDialog(QDialog):
         # API version / SSL / HTTP2 are connection config, not credentials,
         # so they stay editable regardless.
         if provider == "azure":
-            self.azure_endpoint_edit.setEnabled(not checked)
-            self.azure_endpoint_label.setEnabled(not checked)
-            if checked:
+            self.azure_endpoint_edit.setEnabled(not env_mode)
+            self.azure_endpoint_label.setEnabled(not env_mode)
+            if env_mode:
                 self.azure_endpoint_label.setText(
                     "Azure endpoint: (from AZURE_OPENAI_ENDPOINT)"
                 )
@@ -426,7 +435,7 @@ class ProviderSettingsDialog(QDialog):
             "azure",
             "azure-embeddings",
         )
-        env_mode = self.use_env_check.isChecked()
+        env_mode = self._external_credentials_active()
         show_emb_key = emb_uses_key and not env_mode
         self.emb_api_key_edit.setVisible(show_emb_key)
         self.emb_show_key_btn.setVisible(show_emb_key)
@@ -490,7 +499,7 @@ class ProviderSettingsDialog(QDialog):
         from lazylabeltext.core.providers import create_llm_provider
 
         provider_name = self.llm_provider_combo.currentText()
-        use_env = self.use_env_check.isChecked()
+        use_env = self._external_credentials_active()
         kwargs: dict = {
             "model": self.llm_model_combo.currentText(),
         }
@@ -529,14 +538,20 @@ class ProviderSettingsDialog(QDialog):
 
     def _save_and_accept(self) -> None:
         self.settings.llm_provider = self.llm_provider_combo.currentText()
-        self.settings.llm_use_env_credentials = self.use_env_check.isChecked()
         self.settings.dotenv_enabled = self.dotenv_check.isChecked()
         self.settings.dotenv_path = self.dotenv_path_edit.text().strip()
-        # Don't keep the field's text in memory if env-mode is on — that way
-        # toggling env-mode off in the same session doesn't accidentally
-        # reuse a stale paste.
+        # "External credentials" = either the env-vars toggle or the .env loader
+        # is on. The runtime providers gate "read from os.environ" on
+        # llm_use_env_credentials, and a .env file populates os.environ at
+        # startup — so for the providers' purposes the two toggles are the same
+        # signal. Persist the OR'd value so dotenv-only configs work.
+        env_mode = self._external_credentials_active()
+        self.settings.llm_use_env_credentials = env_mode
+        # Don't keep the field's text in memory if creds come from env vars or
+        # a .env file — that way toggling env-mode off in the same session
+        # doesn't accidentally reuse a stale paste.
         self.settings.llm_api_key = (
-            "" if self.use_env_check.isChecked() else self.api_key_edit.text()
+            "" if env_mode else self.api_key_edit.text()
         )
         self.settings.llm_model = self.llm_model_combo.currentText()
         self.settings.llm_base_url = self.base_url_edit.text()
@@ -551,8 +566,6 @@ class ProviderSettingsDialog(QDialog):
         self.settings.embedding_model = self.emb_model_combo.currentText()
         # Drop the embedding key when env-mode is on, same as the LLM key.
         self.settings.embedding_api_key = (
-            ""
-            if self.use_env_check.isChecked()
-            else self.emb_api_key_edit.text()
+            "" if env_mode else self.emb_api_key_edit.text()
         )
         self.accept()
