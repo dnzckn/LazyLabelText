@@ -2,27 +2,34 @@
 
 Uses tiktoken's `cl100k_base` encoding when available. Falls back to a
 word-length heuristic if tiktoken isn't installed OR can't load its
-encoding file (e.g. first run without internet and no pre-cached
-encoding bytes). The heuristic is rough (~4 chars/token) but accurate
+encoding file. The heuristic is rough (~4 chars/token) but accurate
 enough for chunking decisions — token caps are heuristic anyway.
 
-To work fully offline:
-  1. On a machine with internet, run:
-       python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
-     This caches the encoding (~1.4 MB) in:
-       Linux/Mac:  ~/.cache/tiktoken/
-       Windows:    %LOCALAPPDATA%\\tiktoken_cache\\  (or $TEMP\\data-gym-cache\\)
-  2. Copy the cache directory to the offline machine, OR set the env var
-     TIKTOKEN_CACHE_DIR=<your-path> to point at it.
-The path resolution is whatever tiktoken itself uses; this tool just
-calls `tiktoken.get_encoding`.
+If tiktoken can't fetch its encoder file at runtime, you can drop it in
+manually. Download:
+    https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken
+and save (keeping the filename) to:
+    <package_dir>/models/tiktoken/cl100k_base.tiktoken
+``bootstrap_tiktoken_cache()`` (called from main.py on startup) detects
+the drop, links it to the hash filename tiktoken expects, and points
+``TIKTOKEN_CACHE_DIR`` at it — no further config needed.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
 
 logger = logging.getLogger("lazylabeltext")
+
+# Canonical URL tiktoken downloads cl100k_base from. Used to derive the
+# hash-named cache file tiktoken expects when looking inside
+# TIKTOKEN_CACHE_DIR. Don't hardcode the hash — derive it so a future
+# tiktoken release that changes the URL pattern stays correct.
+_CL100K_BLOB_URL = (
+    "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+)
 
 # _ENCODER is one of:
 #   None       — never tried
@@ -81,12 +88,59 @@ def is_using_tiktoken() -> bool:
 def warm_encoder_cache() -> bool:
     """Eagerly load the tiktoken encoding on startup.
 
-    On a machine with internet, this triggers tiktoken to download + cache
-    `cl100k_base.tiktoken` to its cache directory — meaning later runs (and
-    later runs *offline*) work without the heuristic fallback. On a machine
-    without internet and with no pre-existing cache, this fails quietly; the
-    fallback in count_tokens() takes over.
+    Triggers tiktoken to load (and if needed, download + cache)
+    `cl100k_base.tiktoken`. Later runs reuse the cache; if the load
+    fails, the fallback in count_tokens() takes over.
 
     Returns True if tiktoken is now active.
     """
     return is_using_tiktoken()
+
+
+def bootstrap_tiktoken_cache() -> bool:
+    """Wire up a manually-downloaded BPE file to tiktoken's cache.
+
+    Lookup path: ``<paths.models_dir>/tiktoken/cl100k_base.tiktoken``.
+    If present, this function:
+      1. Computes the SHA1 hash tiktoken uses as its cache key for the
+         canonical cl100k_base URL.
+      2. Copies (or links) the human-readable file to that hash name in
+         the same directory, so tiktoken finds it without a download.
+      3. Sets ``TIKTOKEN_CACHE_DIR`` to that directory if not already set.
+
+    Returns True if the bootstrap completed (file found + linked + env
+    var set), False if there was nothing to do or the link failed.
+    """
+    try:
+        from lazylabeltext.config.paths import Paths
+    except Exception:
+        return False
+
+    drop_dir = Paths().models_dir / "tiktoken"
+    drop_file = drop_dir / "cl100k_base.tiktoken"
+    if not drop_file.is_file():
+        return False
+
+    cache_key = hashlib.sha1(_CL100K_BLOB_URL.encode("utf-8")).hexdigest()
+    target = drop_dir / cache_key
+    if not target.exists():
+        try:
+            # Hardlink first (cheap, no copy); fall back to a byte copy
+            # if hardlinks aren't allowed (cross-device, FAT32, etc.).
+            try:
+                os.link(drop_file, target)
+            except OSError:
+                import shutil
+                shutil.copy2(drop_file, target)
+        except OSError as e:
+            logger.warning(
+                "tiktoken bootstrap: couldn't link %s → %s (%s)",
+                drop_file, target, e,
+            )
+            return False
+
+    # Don't override an explicit user-set TIKTOKEN_CACHE_DIR — they may
+    # be pointing at a shared cache deliberately.
+    os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(drop_dir))
+    logger.info("tiktoken cache bootstrapped from %s", drop_file)
+    return True

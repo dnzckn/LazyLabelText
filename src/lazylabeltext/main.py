@@ -85,8 +85,17 @@ def main() -> None:
     # set up for offline runs later. Quick when cached / online, silent when
     # offline (count_tokens will fall back to a heuristic).
     try:
-        from lazylabeltext.utils.token_counter import warm_encoder_cache
+        from lazylabeltext.utils.token_counter import (
+            bootstrap_tiktoken_cache,
+            warm_encoder_cache,
+        )
 
+        # Bootstrap first: if the user has manually placed
+        # cl100k_base.tiktoken at <models_dir>/tiktoken/, link it into
+        # the hash-named filename tiktoken expects and point
+        # TIKTOKEN_CACHE_DIR there. Then warm so the encoder loads now
+        # rather than on first chunk.
+        bootstrap_tiktoken_cache()
         warm_encoder_cache()
     except Exception:
         pass

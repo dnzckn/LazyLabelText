@@ -106,6 +106,14 @@ class AzureEmbeddingProvider:
             "openai_api_version": api_version,
             "azure_deployment": self.model_name,
             "http_client": httpx_client,
+            # langchain's OpenAIEmbeddings uses tiktoken internally to
+            # batch inputs by token count. tiktoken fetches its BPE
+            # encoder from openaipublic.blob.core.windows.net on first
+            # use, and that fetch happens outside our configured
+            # httpx_client (so verify_ssl / proxy settings don't apply).
+            # Setting tiktoken_enabled=False makes langchain fall back to
+            # a length-based batching heuristic — no tiktoken download.
+            "tiktoken_enabled": False,
         }
         if endpoint:
             kwargs["azure_endpoint"] = endpoint

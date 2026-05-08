@@ -33,12 +33,23 @@ llt
 | LLM | Anthropic (Claude) | `ANTHROPIC_API_KEY` | hosted |
 | LLM | OpenAI (GPT) | `OPENAI_API_KEY` | hosted |
 | LLM | Google (Gemini) | `GOOGLE_API_KEY` | hosted |
-| LLM | Azure OpenAI | env-driven | hosted; corporate-friendly |
+| LLM | Azure OpenAI | env-driven | hosted |
 | LLM | Ollama (Llama / Mistral / Gemma / Qwen / …) | — | local; needs an Ollama server, configure base URL in-app |
 | Embedding | sentence-transformers | — | local; ~90 MB model downloaded on first use |
 | Embedding | OpenAI / Azure embeddings | shared with LLM env vars | hosted |
 
 Switching providers mid-project is safe — existing labels stay tagged with the model that produced them.
+
+### Manual tiktoken encoder
+
+If `tiktoken`'s automatic download of its BPE encoder fails on first run, you can drop the file in manually:
+
+1. Download `https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken` (e.g. via your browser).
+2. Save it (keep the filename) to `<package install dir>/models/tiktoken/cl100k_base.tiktoken`.
+   - From source: `<repo>/src/lazylabeltext/models/tiktoken/cl100k_base.tiktoken`
+   - From PyPI: `<site-packages>/lazylabeltext/models/tiktoken/cl100k_base.tiktoken`
+
+The app detects the drop on startup, links it to the hash filename `tiktoken` expects, and points `TIKTOKEN_CACHE_DIR` at it — no further config needed.
 
 ---
 
