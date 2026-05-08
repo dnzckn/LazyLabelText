@@ -13,9 +13,16 @@ logger = logging.getLogger("lazylabeltext")
 MODES = ["convert", "rubric", "chunk", "label", "results", "parallel", "export"]
 
 # Modes where the rubric panel on the right is genuinely useful.
-# Convert/Chunk/Parallel/Export don't reference categories on their own
-# (Parallel mode embeds Label inside its drill-in but manages its own layout).
-_MODES_WITH_RUBRIC_PANEL = {"label", "results"}
+# Parallel mode embeds the Label viewer in its drill-in, so reviewers
+# checking labels in parallel mode want the same rubric reference they
+# get in plain Label mode. Convert / Chunk / Export still don't.
+_MODES_WITH_RUBRIC_PANEL = {"label", "results", "parallel"}
+
+# Whether the splitter lets the user collapse the rubric panel to zero
+# width by dragging. Parallel mode benefits from this since the strip
+# already eats some horizontal space — a reviewer who doesn't want the
+# rubric reference can pull it shut.
+_COLLAPSIBLE_RUBRIC_MODES = {"parallel"}
 
 
 class ModeManager:
@@ -52,6 +59,13 @@ class ModeManager:
                     self.mw.right_panel.update_rubric(rubric)
                 except Exception:
                     pass
+            # Let parallel-mode reviewers drag the rubric panel fully shut;
+            # other modes keep their non-collapsible behaviour so the
+            # panel is always at least minimally visible.
+            if hasattr(self.mw, "main_splitter"):
+                self.mw.main_splitter.setChildrenCollapsible(
+                    mode in _COLLAPSIBLE_RUBRIC_MODES
+                )
 
         # Activate/deactivate mode widgets
         old_widget = self.mw.center_panel.get_mode_widget(old_mode)

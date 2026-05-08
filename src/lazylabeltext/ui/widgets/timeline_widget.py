@@ -235,6 +235,9 @@ class TimelineWidget(QWidget):
         "correct": QColor(76, 200, 80),   # green (still a positive resolution)
         "skip": QColor(255, 200, 60),     # yellow
         "flag": QColor(220, 70, 70),      # red
+        # Bulk-bypassed labels: muted green to read as "passed through"
+        # (positive outcome, but distinct from a deliberate human accept).
+        "bypassed": QColor(120, 160, 130),
     }
 
     def set_review_actions(self, mapping: dict[int, str]) -> None:

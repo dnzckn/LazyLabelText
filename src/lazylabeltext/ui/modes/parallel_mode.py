@@ -50,6 +50,7 @@ _STAGE_OPTIONS = [
     ("Label", "label"),
     ("All Stages", "all"),
     ("Edit", "edit"),
+    ("Bypass approval", "bypass"),
 ]
 
 
@@ -154,10 +155,12 @@ class ParallelModeWidget(BaseMode):
         self.chunk_group = self._build_chunk_settings()
         self.label_group = self._build_label_settings()
         self.edit_group = self._build_edit_settings()
+        self.bypass_group = self._build_bypass_settings()
         left_layout.addWidget(self.convert_group)
         left_layout.addWidget(self.chunk_group)
         left_layout.addWidget(self.label_group)
         left_layout.addWidget(self.edit_group)
+        left_layout.addWidget(self.bypass_group)
         self._on_stage_changed(self.stage_combo.currentIndex())
 
         # Run / Cancel buttons
@@ -353,6 +356,27 @@ class ParallelModeWidget(BaseMode):
         v.addWidget(self.edit_op_combo)
         return box
 
+    def _build_bypass_settings(self) -> QGroupBox:
+        """Bulk-approve labels without human review."""
+        box = QGroupBox("Bypass approval")
+        box.setStyleSheet("QGroupBox { font-size: 11px; }")
+        v = QVBoxLayout(box)
+        v.setContentsMargins(8, 6, 8, 6)
+        v.setSpacing(4)
+
+        hint = QLabel(
+            "Marks every *unreviewed* label across the included docs as "
+            "approved without a human pass — recorded as action "
+            "<b>bypassed</b> (distinct from <b>accepted</b>) so downstream "
+            "consumers can tell deliberate human approvals from bulk "
+            "pass-throughs. Existing reviews are left alone."
+        )
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888; font-size: 10px;")
+        hint.setTextFormat(Qt.TextFormat.RichText)
+        v.addWidget(hint)
+        return box
+
     def _refresh_rubric_status(self) -> None:
         if self.ctx.rubric_manager is None:
             self.rubric_status_label.setText("(no rubric manager)")
@@ -373,7 +397,8 @@ class ParallelModeWidget(BaseMode):
         self.chunk_group.setVisible(show_all or stage == "chunk")
         self.label_group.setVisible(show_all or stage == "label")
         self.edit_group.setVisible(stage == "edit")
-        if show_all or stage == "label":
+        self.bypass_group.setVisible(stage == "bypass")
+        if show_all or stage == "label" or stage == "bypass":
             self._refresh_rubric_status()
         self._sync_detail_tab_to_stage()
 
@@ -504,11 +529,14 @@ class ParallelModeWidget(BaseMode):
             self.status_label.setText("No documents selected.")
             return
 
-        # Edit stage runs synchronously on the main thread — operations
-        # are DB-bound and fast (no LLM calls). Single dialog → single
-        # status update → done; no worker needed.
+        # Edit / Bypass stages run synchronously on the main thread —
+        # they're DB-bound and fast (no LLM calls). Single dialog →
+        # single status update → done; no worker needed.
         if stage == "edit":
             self._run_edit_op(doc_ids)
+            return
+        if stage == "bypass":
+            self._run_bypass_op(doc_ids)
             return
 
         params = self._build_params()
@@ -565,6 +593,39 @@ class ParallelModeWidget(BaseMode):
             )
         else:
             self.status_label.setText(f"Unknown edit op: {op}")
+
+    def _run_bypass_op(self, doc_ids: list[int]) -> None:
+        """Mark unreviewed labels for the included docs as 'bypassed'."""
+        if (
+            self.ctx.label_manager is None
+            or self.ctx.rubric_manager is None
+        ):
+            self.status_label.setText("No project loaded.")
+            return
+        rubric = self.ctx.rubric_manager.get_active_rubric()
+        if rubric is None or rubric.id is None:
+            self.status_label.setText("No active rubric — create one first.")
+            return
+        try:
+            n = self.ctx.label_manager.bypass_unreviewed(
+                rubric.id, document_ids=doc_ids,
+            )
+        except Exception as e:
+            self.status_label.setText(f"Bypass failed: {e}")
+            self.main_window.notification_manager.show_error(
+                f"Bypass approval failed: {e}"
+            )
+            return
+        self.status_label.setText(
+            f"Bypassed {n} label(s) across {len(doc_ids)} doc(s)."
+        )
+        self.main_window._update_stats()
+        # Refresh strip so review counts update.
+        if self.ctx.parallel_orchestrator is not None:
+            self.strip.populate(self.ctx.parallel_orchestrator.refresh_states())
+        self.main_window.notification_manager.show_success(
+            f"Bypassed {n} label(s)"
+        )
 
     def _on_cancel(self) -> None:
         if self._worker is None:

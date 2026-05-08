@@ -161,6 +161,45 @@ class LabelManager:
         review.id = self.db.insert_review(review)
         return review
 
+    def bypass_unreviewed(
+        self,
+        rubric_version_id: int,
+        document_ids: list[int] | None = None,
+    ) -> int:
+        """Mark every unreviewed label as accepted-without-review.
+
+        Records a HumanReview with action="bypassed" (distinct from
+        "accept" so downstream consumers can tell deliberate human
+        approvals from bulk pass-throughs). Existing reviews are left
+        alone — bypass never overrides manual review work. Returns the
+        count of labels that got a new bypass review.
+
+        ``document_ids`` scopes the bypass to specific docs; None means
+        every doc that has labels for this rubric.
+        """
+        labels = self.db.get_all_labels(rubric_version_id)
+        scope: set[int] | None = (
+            set(document_ids) if document_ids is not None else None
+        )
+        bypassed = 0
+        for lab in labels:
+            if lab.id is None:
+                continue
+            existing = self.db.get_reviews_for_label(lab.id)
+            if existing:
+                continue
+            if scope is not None:
+                chunk = self.db.get_chunk(lab.chunk_id)
+                if chunk is None or chunk.document_id not in scope:
+                    continue
+            self.submit_review(
+                lab.id,
+                action="bypassed",
+                final_categories=list(lab.predicted_categories or []),
+            )
+            bypassed += 1
+        return bypassed
+
     def get_labeling_summary(self, rubric_version_id: int) -> dict:
         return self.db.get_labeling_summary(rubric_version_id)
 
