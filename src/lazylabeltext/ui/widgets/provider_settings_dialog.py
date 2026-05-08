@@ -366,7 +366,7 @@ class ProviderSettingsDialog(QDialog):
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Choose .env file",
-            self.dotenv_path_edit.text() or str(),
+            self.dotenv_path_edit.text() or "",
             "Env files (*.env *);;All files (*)",
         )
         if path:
@@ -452,15 +452,7 @@ class ProviderSettingsDialog(QDialog):
         self._sync_embedding_key_visibility()
 
         self.emb_model_combo.clear()
-        if provider in ("openai", "openai-embeddings"):
-            self.emb_model_combo.addItems(
-                [
-                    "text-embedding-ada-002",
-                    "text-embedding-3-small",
-                    "text-embedding-3-large",
-                ]
-            )
-        elif provider in ("azure", "azure-embeddings"):
+        if provider in ("openai", "openai-embeddings") or provider in ("azure", "azure-embeddings"):
             self.emb_model_combo.addItems(
                 [
                     "text-embedding-ada-002",

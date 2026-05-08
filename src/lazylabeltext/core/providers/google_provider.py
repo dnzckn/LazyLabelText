@@ -87,7 +87,7 @@ class GoogleProvider:
                     response_logprobs=True,
                 ),
             )
-        except Exception as e:
+        except Exception:
             # Some Gemini models reject response_logprobs; retry without.
             try:
                 response = client.models.generate_content(

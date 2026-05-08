@@ -101,7 +101,14 @@ class _DocRow(QWidget):
         stage = "excluded" if not state.included else state.stage
         color = _STAGE_COLORS.get(stage, "#888")
         label = _STAGE_LABELS.get(stage, stage)
-        self.badge.setText(f"●{label}")
+        # When workers are actively on this doc, suffix the badge with
+        # "x<count>" so the user can see how many collaborators are
+        # currently labeling it. Hidden for non-running stages — there's
+        # no useful count for "done" or "queued".
+        if stage == "label" and getattr(state, "running_workers", 0) > 0:
+            self.badge.setText(f"●{label} x{state.running_workers}")
+        else:
+            self.badge.setText(f"●{label}")
         self.badge.setStyleSheet(f"color: {color}; font-size: 10px;")
 
         # Show progress only while actually working a doc — queued/idle

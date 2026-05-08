@@ -37,6 +37,11 @@ class TimelineWidget(QWidget):
         "skipped": QColor(139, 69, 19),  # Brown for dimension mismatch
         "suggested": QColor(156, 39, 176),  # Purple for AI-suggested reference
         "current": QColor(33, 150, 243),  # Blue for current frame marker
+        # Black for "Does Not Belong" — the LLM looked at this chunk and
+        # said it didn't fit any rubric category. Visually distinct from
+        # the medium gray of "pending" so users can tell labeled-as-DNB
+        # apart from never-labeled at a glance.
+        "DNB (does not belong)": QColor(20, 20, 20),
     }
 
     # Sort priority: lower = further left when sorted

@@ -192,6 +192,41 @@ class LabelManager:
         """Delete all labels (any rubric version) for a single document."""
         return self.db.delete_labels_for_document(document_id)
 
+    def drop_dnb_labels(
+        self,
+        rubric_version_id: int,
+        document_id: int | None = None,
+    ) -> int:
+        """Delete all DNB ("does not belong") labels for a rubric.
+
+        If ``document_id`` is given, only that doc's DNB labels are removed
+        — the chunk goes back to "unlabeled" so it can be relabeled in a
+        future round (e.g. with an updated rubric that adds a category
+        that matches what the LLM previously rejected). Returns the count
+        deleted. Empty predicted_categories are treated as DNB too — that
+        covers legacy rows from before the DNB constant existed.
+        """
+        from lazylabeltext.core.models import DNB_CATEGORY
+
+        labels = self.db.get_all_labels(rubric_version_id)
+        deleted = 0
+        for lab in labels:
+            cats = lab.predicted_categories or []
+            is_dnb = (not cats) or (
+                len(cats) == 1 and cats[0] == DNB_CATEGORY
+            )
+            if not is_dnb:
+                continue
+            if document_id is not None:
+                # Only drop DNBs for this doc.
+                chunk = self.db.get_chunk(lab.chunk_id)
+                if chunk is None or chunk.document_id != document_id:
+                    continue
+            if lab.id is not None:
+                self.db.delete_label(lab.id)
+                deleted += 1
+        return deleted
+
     def get_category_coverage(self, rubric_version_id: int) -> list[dict]:
         """Per-category corpus health stats for the rubric coverage view.
 

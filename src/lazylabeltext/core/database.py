@@ -197,11 +197,9 @@ class Database:
             # the next time their source path is visited.
             "ALTER TABLE documents ADD COLUMN source_hash TEXT",
         ]:
-            try:
+            # Column already exists or table just got created above.
+            with contextlib.suppress(sqlite3.OperationalError):
                 self.conn.execute(stmt)
-            except sqlite3.OperationalError:
-                # Column already exists or table just got created above.
-                pass
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_documents_source_hash "
             "ON documents(source_hash)"

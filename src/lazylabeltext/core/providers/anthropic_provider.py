@@ -54,7 +54,15 @@ class AnthropicProvider:
                     "anthropic",
                     "No API key. Set ANTHROPIC_API_KEY or configure in settings.",
                 )
-            self._client = anthropic.Anthropic(api_key=self.api_key)
+            # max_retries=8 (vs SDK default 2) so transient 429 rate-limit
+            # responses get more chances to recover via the SDK's built-in
+            # exponential backoff. With Tier-1-style 50 RPM caps and high
+            # collaborator counts, the default 2 retries get exhausted
+            # almost instantly; 8 turns most failures into "wait a few
+            # extra seconds, then succeed" instead of a hard error.
+            self._client = anthropic.Anthropic(
+                api_key=self.api_key, max_retries=8,
+            )
         return self._client
 
     def complete(self, prompt: str, max_tokens: int = 4096) -> str:

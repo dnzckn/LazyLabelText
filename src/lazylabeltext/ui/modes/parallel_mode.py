@@ -49,6 +49,7 @@ _STAGE_OPTIONS = [
     ("Chunk", "chunk"),
     ("Label", "label"),
     ("All Stages", "all"),
+    ("Edit", "edit"),
 ]
 
 
@@ -117,15 +118,46 @@ class ParallelModeWidget(BaseMode):
         workers_row.addWidget(self.workers_spin, 1)
         left_layout.addLayout(workers_row)
 
+        # Max workers per doc — caps how many workers can label chunks of
+        # the *same* doc concurrently. 1 = today's per-doc-finishes-first
+        # behavior. Higher = single docs finish faster (the only way to
+        # use many workers when there's just one doc selected).
+        collab_row = QHBoxLayout()
+        collab_row.setSpacing(4)
+        collab_row.addWidget(QLabel("Max workers per doc:"))
+        self.collaborators_spin = QSpinBox()
+        self.collaborators_spin.setRange(1, 32)
+        self.collaborators_spin.setToolTip(
+            "Max workers that can label chunks of the same doc at once.\n"
+            "1 → docs finish one-by-one (one doc per worker).\n"
+            "= Workers → all workers focus on a single doc until done.\n"
+            "In between → up to (Workers / Max-per-doc) docs in flight.\n\n"
+            "Keep in mind your LLM provider's API rate limits — high\n"
+            "values can saturate them and cause failures."
+        )
+        default_collab = (
+            getattr(self.ctx.settings, "max_collaborators_per_doc", 1)
+            if self.ctx.settings is not None
+            else 1
+        )
+        self.collaborators_spin.setValue(default_collab)
+        self.collaborators_spin.valueChanged.connect(
+            self._on_collaborators_changed
+        )
+        collab_row.addWidget(self.collaborators_spin, 1)
+        left_layout.addLayout(collab_row)
+
         # Stage settings — three group boxes, visibility driven by stage selector.
         # Edits here mutate Settings directly and persist on every change so the
         # orchestrator (which reads from settings via _build_params) sees them.
         self.convert_group = self._build_convert_settings()
         self.chunk_group = self._build_chunk_settings()
         self.label_group = self._build_label_settings()
+        self.edit_group = self._build_edit_settings()
         left_layout.addWidget(self.convert_group)
         left_layout.addWidget(self.chunk_group)
         left_layout.addWidget(self.label_group)
+        left_layout.addWidget(self.edit_group)
         self._on_stage_changed(self.stage_combo.currentIndex())
 
         # Run / Cancel buttons
@@ -299,6 +331,28 @@ class ParallelModeWidget(BaseMode):
         self._refresh_rubric_status()
         return box
 
+    def _build_edit_settings(self) -> QGroupBox:
+        """Bulk-edit operations across all included docs (e.g. drop DNBs)."""
+        box = QGroupBox("Edit operations")
+        box.setStyleSheet("QGroupBox { font-size: 11px; }")
+        v = QVBoxLayout(box)
+        v.setContentsMargins(8, 6, 8, 6)
+        v.setSpacing(4)
+
+        hint = QLabel(
+            "Run this stage to apply the selected operation to every "
+            "*included* document. Useful after editing the rubric."
+        )
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888; font-size: 10px;")
+        v.addWidget(hint)
+
+        v.addWidget(QLabel("Operation:"))
+        self.edit_op_combo = QComboBox()
+        self.edit_op_combo.addItem("Drop DNB labels", "drop_dnbs")
+        v.addWidget(self.edit_op_combo)
+        return box
+
     def _refresh_rubric_status(self) -> None:
         if self.ctx.rubric_manager is None:
             self.rubric_status_label.setText("(no rubric manager)")
@@ -318,6 +372,7 @@ class ParallelModeWidget(BaseMode):
         self.convert_group.setVisible(show_all or stage == "convert")
         self.chunk_group.setVisible(show_all or stage == "chunk")
         self.label_group.setVisible(show_all or stage == "label")
+        self.edit_group.setVisible(stage == "edit")
         if show_all or stage == "label":
             self._refresh_rubric_status()
         self._sync_detail_tab_to_stage()
@@ -337,6 +392,12 @@ class ParallelModeWidget(BaseMode):
         tab_idx = {"convert": 0, "chunk": 1, "label": 2}.get(stage)
         if tab_idx is not None:
             self.detail_tabs.setCurrentIndex(tab_idx)
+
+    def _on_collaborators_changed(self, n: int) -> None:
+        s = self._settings()
+        if s is not None:
+            s.max_collaborators_per_doc = n
+        self._persist_settings()
 
     def _on_workers_changed(self, n: int) -> None:
         s = self._settings()
@@ -421,6 +482,10 @@ class ParallelModeWidget(BaseMode):
         # Labeling needs the active rubric.
         if self.ctx.rubric_manager is not None:
             params["rubric"] = self.ctx.rubric_manager.get_active_rubric()
+        # Per-doc concurrency cap: how many workers can label chunks of
+        # the same doc at once. Read from the spinbox so a mid-session
+        # change takes effect on the next Run without needing a restart.
+        params["max_collaborators"] = self.collaborators_spin.value()
         return params
 
     def _included_doc_ids(self) -> list[int]:
@@ -438,6 +503,14 @@ class ParallelModeWidget(BaseMode):
         if not doc_ids:
             self.status_label.setText("No documents selected.")
             return
+
+        # Edit stage runs synchronously on the main thread — operations
+        # are DB-bound and fast (no LLM calls). Single dialog → single
+        # status update → done; no worker needed.
+        if stage == "edit":
+            self._run_edit_op(doc_ids)
+            return
+
         params = self._build_params()
         if stage in ("label", "all") and not params.get("rubric"):
             self.status_label.setText("No active rubric — create one first.")
@@ -457,6 +530,41 @@ class ParallelModeWidget(BaseMode):
         self._worker = worker
         self._set_running(True)
         worker.start()
+
+    def _run_edit_op(self, doc_ids: list[int]) -> None:
+        """Apply the selected bulk-edit operation across the included docs."""
+        op = self.edit_op_combo.currentData()
+        if op == "drop_dnbs":
+            if (
+                self.ctx.label_manager is None
+                or self.ctx.rubric_manager is None
+            ):
+                self.status_label.setText("No project loaded.")
+                return
+            rubric = self.ctx.rubric_manager.get_active_rubric()
+            if rubric is None or rubric.id is None:
+                self.status_label.setText("No active rubric — create one first.")
+                return
+            total = 0
+            for d in doc_ids:
+                try:
+                    total += self.ctx.label_manager.drop_dnb_labels(
+                        rubric.id, document_id=d,
+                    )
+                except Exception as e:
+                    logger.warning("drop_dnb_labels failed for doc %s: %s", d, e)
+            self.status_label.setText(
+                f"Dropped {total} DNB label(s) across {len(doc_ids)} doc(s)."
+            )
+            self.main_window._update_stats()
+            # Refresh the strip so doc-level chunk/label counts update.
+            if self.ctx.parallel_orchestrator is not None:
+                self.strip.populate(self.ctx.parallel_orchestrator.refresh_states())
+            self.main_window.notification_manager.show_success(
+                f"Dropped {total} DNB label(s)"
+            )
+        else:
+            self.status_label.setText(f"Unknown edit op: {op}")
 
     def _on_cancel(self) -> None:
         if self._worker is None:
@@ -570,9 +678,16 @@ class ParallelModeWidget(BaseMode):
         failed = summary.get("failed", 0)
         artifacts = summary.get("artifacts", 0)
         cancelled = summary.get("cancelled", False)
+        errors = summary.get("errors", []) or []
         msg = f"{stage}: {succeeded} ok, {failed} failed, {artifacts} artifacts"
         if cancelled:
             msg += " (cancelled)"
+        # When there are errors, surface a representative one in the status
+        # area so the user sees the actual cause (e.g. "RateLimitError")
+        # without having to dig in the terminal log.
+        if errors:
+            sample = str(errors[0].get("error", ""))[:120]
+            msg += f"\nFirst error: {sample}"
         self.status_label.setText(msg)
         self.main_window._update_stats()
         # Belt-and-suspenders: rebuild the strip from the orchestrator's
@@ -595,3 +710,4 @@ class ParallelModeWidget(BaseMode):
         self.cancel_btn.setEnabled(running)
         self.stage_combo.setEnabled(not running)
         self.workers_spin.setEnabled(not running)
+        self.collaborators_spin.setEnabled(not running)

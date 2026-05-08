@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# Reserved category name for "the LLM looked at this chunk and judged it
+# doesn't fit any rubric category". A real, user-visible value (not just
+# absence) so the timeline can render it distinctly from "pending /
+# unlabeled" and analytics can count it as a deliberate outcome.
+# Empty predicted_categories on a Label is treated as DNB at display time
+# for backward compatibility with rows ingested before this constant existed.
+DNB_CATEGORY = "DNB (does not belong)"
+
 
 @dataclass
 class Heading:

@@ -51,7 +51,12 @@ class OpenAIProvider:
                     "openai",
                     "No API key. Set OPENAI_API_KEY or configure in settings.",
                 )
-            self._client = openai.OpenAI(api_key=self.api_key)
+            # max_retries=8 (vs SDK default 2) — same rationale as the
+            # Anthropic client; gives transient 429 rate-limit responses
+            # more chances to recover.
+            self._client = openai.OpenAI(
+                api_key=self.api_key, max_retries=8,
+            )
         return self._client
 
     def complete(self, prompt: str, max_tokens: int = 4096) -> str:

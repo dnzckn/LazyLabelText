@@ -122,11 +122,18 @@ class LabelModeWidget(BaseMode):
             ("Skip (S)", None, self._skip_current),
             ("Flag (F)", "dangerButton", self._flag_current),
             ("Discard (D)", "dangerButton", self._discard_current),
+            ("Drop DNBs", None, self._drop_dnbs_for_doc),
         ]
         for text, obj_name, callback in actions:
             btn = QPushButton(text)
             if obj_name:
                 btn.setObjectName(obj_name)
+            if text.startswith("Drop DNBs"):
+                btn.setToolTip(
+                    "Delete all 'does not belong' labels for this document so "
+                    "the chunks return to unlabeled. Use after editing the "
+                    "rubric to give the LLM another chance on these chunks."
+                )
             btn.clicked.connect(callback)
             action_row.addWidget(btn)
         layout.addLayout(action_row)
@@ -199,7 +206,18 @@ class LabelModeWidget(BaseMode):
             self._set_empty("No database connection.")
             return
 
-        chunks = self.ctx.database.get_chunks_for_document(doc_id)
+        # Read chunks from the *latest* chunking run only — get_chunks_for_
+        # _document would include any stale rows from earlier chunking runs
+        # that didn't get cleaned up, which causes the "73/73 labeled" /
+        # "but I see unlabeled chunks" mismatch the orchestrator can't help
+        # because it (correctly) only labels the latest run's chunks.
+        chunks = []
+        if self.ctx.chunk_manager is not None:
+            runs = self.ctx.chunk_manager.get_chunking_runs(doc_id)
+            if runs:
+                chunks = self.ctx.chunk_manager.get_chunks(
+                    doc_id, runs[-1].id,
+                )
         self._chunks = chunks
 
         # Map chunk_id → latest label (for the active rubric only).
@@ -256,6 +274,8 @@ class LabelModeWidget(BaseMode):
         self.timeline.timeline.set_frame_names(names)
 
     def _refresh_timeline_statuses(self) -> None:
+        from lazylabeltext.core.models import DNB_CATEGORY
+
         statuses: dict[int, str] = {}
         confidences: dict[int, float] = {}
         review_actions: dict[int, str] = {}
@@ -272,8 +292,11 @@ class LabelModeWidget(BaseMode):
                 if review and review.final_categories
                 else lab.predicted_categories
             )
-            if cats:
-                statuses[i] = cats[0]
+            # A Label row with empty predictions is "DNB" — the LLM looked
+            # and said no category fits. Render it distinctly from
+            # never-labeled (which has no Label row at all). Covers both
+            # new DNB labels and legacy rows that landed before DNB existed.
+            statuses[i] = cats[0] if cats else DNB_CATEGORY
             confidences[i] = lab.composite_confidence or 0.0
             if review and review.action:
                 review_actions[i] = review.action
@@ -326,12 +349,18 @@ class LabelModeWidget(BaseMode):
             1 for c in self._chunks if self._labels_by_chunk.get(c.id or -1)
         )
         if lab:
+            from lazylabeltext.core.models import DNB_CATEGORY
+
             cats = (
                 review.final_categories
                 if review and review.final_categories
                 else lab.predicted_categories
             )
-            cat_str = ", ".join(cats) if cats else "—"
+            # Empty predictions on an existing Label row = DNB. Show that
+            # explicitly instead of an em-dash (which read as "unlabeled").
+            if not cats:
+                cats = [DNB_CATEGORY]
+            cat_str = ", ".join(cats)
             review_tag = f" · reviewed: {review.action}" if review else ""
             self.progress_label.setText(
                 f"Chunk {idx + 1}/{len(self._chunks)}  ·  "
@@ -348,7 +377,7 @@ class LabelModeWidget(BaseMode):
         self._clear_confidence_bars()
         if lab:
             confidence_source = (
-                {c: 1.0 for c in (review.final_categories or [])}
+                dict.fromkeys(review.final_categories or [], 1.0)
                 if review and review.final_categories
                 else lab.confidence_per_category
             )
@@ -520,6 +549,41 @@ class LabelModeWidget(BaseMode):
         self.clear_labels_btn.setVisible(any_labeled)
         self._show_current()
         self.main_window._update_stats()
+
+    def _drop_dnbs_for_doc(self) -> None:
+        """Delete all DNB labels for the currently-viewed doc."""
+        if (
+            self.ctx.label_manager is None
+            or self.ctx.rubric_manager is None
+            or not self._chunks
+        ):
+            return
+        doc_id = self._current_document_id()
+        if doc_id is None:
+            return
+        rubric = self.ctx.rubric_manager.get_active_rubric()
+        if rubric is None or rubric.id is None:
+            return
+        try:
+            n = self.ctx.label_manager.drop_dnb_labels(
+                rubric.id, document_id=doc_id,
+            )
+        except Exception as e:
+            self.main_window.notification_manager.show_error(
+                f"Drop DNBs failed: {e}"
+            )
+            return
+        if n == 0:
+            self.main_window.notification_manager.show(
+                "No DNB labels to drop."
+            )
+            return
+        self.main_window.notification_manager.show_success(
+            f"Dropped {n} DNB label(s)"
+        )
+        # Reload to refresh both the timeline (DNB cells go back to pending)
+        # and the chunk text panel.
+        self._reload()
 
     def _pick_categories(self, categories, preselected: list[str]) -> list[str] | None:
         dialog = QDialog(self)

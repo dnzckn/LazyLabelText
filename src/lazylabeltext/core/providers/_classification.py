@@ -64,20 +64,31 @@ def parse_classification_response(
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if not match:
             logger.warning("Could not parse LLM classification response: %s", text[:200])
-            if categories:
-                return ClassificationResult(
-                    categories=[categories[0].name],
-                    confidence_per_category={categories[0].name: 0.1},
-                    rationale="Failed to parse LLM response",
-                )
-            return ClassificationResult()
+            return _dnb_result("Failed to parse LLM response")
         try:
             data = json.loads(match.group(0))
         except json.JSONDecodeError:
-            return ClassificationResult()
+            return _dnb_result("Failed to parse LLM response")
 
+    cats = data.get("predicted_categories") or []
+    confs = data.get("confidence_per_category") or {}
+    rationale = data.get("rationale", "")
+    if not cats:
+        # LLM made an explicit "no match" call — record it as DNB so the
+        # timeline shows it differently from a never-labeled chunk.
+        return _dnb_result(rationale or "No category match")
     return ClassificationResult(
-        categories=data.get("predicted_categories", []),
-        confidence_per_category=data.get("confidence_per_category", {}),
-        rationale=data.get("rationale", ""),
+        categories=cats,
+        confidence_per_category=confs,
+        rationale=rationale,
+    )
+
+
+def _dnb_result(rationale: str) -> ClassificationResult:
+    """Build a ClassificationResult representing 'does not belong'."""
+    from lazylabeltext.core.models import DNB_CATEGORY
+    return ClassificationResult(
+        categories=[DNB_CATEGORY],
+        confidence_per_category={DNB_CATEGORY: 1.0},
+        rationale=rationale,
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 
@@ -62,11 +63,9 @@ class Paths:
         this folder onto an air-gapped machine is the manual-install path.
         """
         d = self.app_dir / "models"
-        try:
+        # Frozen / read-only install — caller will handle the missing dir.
+        with contextlib.suppress(Exception):
             d.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            # Frozen / read-only install — caller will handle the missing dir.
-            pass
         return d
 
     def model_path(self, model_name: str) -> Path:

@@ -89,6 +89,14 @@ class Settings:
     # model and doesn't gain from many parallel converts).
     parallel_workers: int = 4
 
+    # Max workers labeling chunks of the *same* doc concurrently. 1 keeps
+    # the original "one worker per doc, sequential chunks within" behavior
+    # so docs still finish in roughly first-finished-first order. Higher
+    # lets a single doc finish faster (good when there's just one doc and
+    # many idle workers); workers/max_collaborators is the upper bound on
+    # how many distinct docs can be in flight at once.
+    max_collaborators_per_doc: int = 1
+
     # Export
     export_format: str = "json"
 

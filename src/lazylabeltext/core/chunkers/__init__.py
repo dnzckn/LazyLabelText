@@ -35,8 +35,14 @@ def available_strategies() -> list[str]:
     return list(CHUNKERS.keys())
 
 
-# Import submodules to trigger registration
-from lazylabeltext.core.chunkers import structural_chunker  # noqa: E402, F401
-from lazylabeltext.core.chunkers import semantic_chunker  # noqa: E402, F401
-from lazylabeltext.core.chunkers import hybrid_chunker  # noqa: E402, F401
-from lazylabeltext.core.chunkers import llm_chunker  # noqa: E402, F401
+# Import submodules to trigger registration. These must run after the
+# CHUNKERS registry is defined above, so the imports are deliberately
+# placed at module-bottom (E402-suppressed) and only used for their
+# side-effect (F401-suppressed). Order is alphabetical — strategy
+# registration is by name, not by extension, so order is irrelevant.
+from lazylabeltext.core.chunkers import (  # noqa: E402
+    hybrid_chunker,  # noqa: F401
+    llm_chunker,  # noqa: F401
+    semantic_chunker,  # noqa: F401
+    structural_chunker,  # noqa: F401
+)

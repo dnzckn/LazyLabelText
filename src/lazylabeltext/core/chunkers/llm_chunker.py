@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -155,10 +156,8 @@ class LLMChunker:
         for i, (w_start, w_end) in enumerate(windows):
             window_text = text[w_start:w_end]
             if progress_cb:
-                try:
+                with contextlib.suppress(Exception):
                     progress_cb(i + 1, len(windows))
-                except Exception:
-                    pass
 
             prompt = PROMPT_TEMPLATE.format(text=window_text)
             try:

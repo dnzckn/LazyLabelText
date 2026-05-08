@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazylabeltext"
-version = "0.1.40"
+version = "1.0.0"
 description = "A desktop tool for zero-shot chunk classification with LLMs, with built-in multi-strategy chunking."
 readme = "README.md"
 license = "Apache-2.0"
@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [{ name = "Deniz N. Cakan", email = "deniz.n.cakan@gmail.com" }]
 keywords = ["labeling", "text", "corpus", "nlp", "annotation", "chunking"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",

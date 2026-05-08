@@ -55,6 +55,9 @@ class HotkeyManager:
             ),
             HotkeyAction("skip_chunk", "Skip Chunk", "S", category="Labeling"),
             HotkeyAction("flag_chunk", "Flag for Review", "F", category="Labeling"),
+            HotkeyAction(
+                "discard_label", "Discard Label", "D", category="Labeling"
+            ),
             HotkeyAction("add_note", "Add Note", "N", category="Labeling"),
             # Chunking
             HotkeyAction("merge_chunks", "Merge with Next", "M", category="Chunking"),

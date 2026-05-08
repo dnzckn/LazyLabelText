@@ -45,6 +45,12 @@ class SentenceTransformerProvider:
         # Belt and suspenders: even if the ctor raises and gets retried, only
         # log the "Downloading…" notice once per provider instance.
         self._announced_download = False
+        # SentenceTransformer.encode is *not* documented thread-safe under
+        # heavy concurrency. Tokenizer caches and PyTorch internal buffers
+        # can race when several workers call encode at once. A serialized
+        # encode adds <50ms per chunk, which is rounding error vs the
+        # 1–3 s LLM call and totally worth the safety margin.
+        self._encode_lock = threading.Lock()
 
     def _local_path(self):
         return Paths().model_path(self.model_name)
@@ -125,11 +131,28 @@ class SentenceTransformerProvider:
 
     def encode(self, texts: list[str]) -> np.ndarray:
         model = self._get_model()
-        return model.encode(texts, show_progress_bar=False, convert_to_numpy=True)
+        with self._encode_lock:
+            return model.encode(
+                texts, show_progress_bar=False, convert_to_numpy=True,
+            )
 
     def encode_one(self, text: str) -> np.ndarray:
         result = self.encode([text])
         return result[0]
+
+    def warm_up(self) -> None:
+        """Force the model to load + first-call init on the calling thread.
+
+        Used by the parallel orchestrator before spawning workers so the
+        lazy SentenceTransformer load doesn't bottleneck N-1 of N workers
+        on the first chunk. Safe to call repeatedly.
+        """
+        self._get_model()
+        # Run a tiny encode to flush any first-call CUDA / kernel JIT.
+        with self._encode_lock:
+            self._model.encode(
+                ["warmup"], show_progress_bar=False, convert_to_numpy=True,
+            )
 
     def is_loaded(self) -> bool:
         return self._model is not None

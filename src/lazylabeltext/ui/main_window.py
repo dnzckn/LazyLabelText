@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 
@@ -264,6 +265,10 @@ class MainWindow(QMainWindow):
             "settings": self._open_settings,
             "toggle_theme": self._toggle_theme,
             "accept_label": self.keyboard_manager.handle_space,
+            "reject_label": self.keyboard_manager.handle_correct,
+            "skip_chunk": self.keyboard_manager.handle_skip,
+            "flag_chunk": self.keyboard_manager.handle_flag,
+            "discard_label": self.keyboard_manager.handle_discard,
         }
 
         for action_name, callback in action_callbacks.items():
@@ -719,10 +724,8 @@ class MainWindow(QMainWindow):
         if confirm != QMessageBox.StandardButton.Yes:
             return
 
-        try:
+        with contextlib.suppress(Exception):
             self.database.close()
-        except Exception:
-            pass
 
         try:
             db_path.unlink(missing_ok=True)
