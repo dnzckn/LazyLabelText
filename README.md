@@ -4,7 +4,7 @@
 
 LazyLabelText is a desktop tool for zero-shot chunk classification with LLMs. It takes a folder (or doc map) of source documents, chunks them with a strategy you control, has an LLM propose labels against a structured rubric, and exports a labeled corpus ready for downstream pipelines (RAG, training data, audit). The tool's job ends at "labeled corpus" — it does not consolidate, synthesize, or generate.
 
-<img src="https://raw.githubusercontent.com/dnzckn/LazyLabelText/main/src/lazylabeltext/demo_pictures/parallel_demo.gif?v=1"/>
+<img src="src/lazylabeltext/demo_pictures/parallel_demo.gif"/>
 
 ---
 
