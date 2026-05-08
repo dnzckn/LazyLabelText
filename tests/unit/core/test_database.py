@@ -9,7 +9,6 @@ from lazylabeltext.core.models import (
     ChunkingRun,
     ConvertedDocument,
     Heading,
-    HumanReview,
     Label,
     Rubric,
 )
