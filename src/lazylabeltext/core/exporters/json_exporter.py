@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,6 +26,12 @@ class JSONExporter:
                                   the JSON so a downstream consumer can join.
     Both can be on simultaneously (inline + sidecar) or both off (no embeddings).
     Default leans toward sidecar when pyarrow is available, otherwise inline.
+
+    Identity model:
+      - chunk_id: per-project AUTOINCREMENT id (fast, compact, joinable locally).
+      - project_uuid: stable per-project UUID4 minted on first export.
+      - chunk_uuid: uuid5(project_uuid, str(chunk_id)) — globally unique, stable,
+        single-string key for cross-project merges without namespacing logic.
     """
 
     def __init__(
@@ -35,27 +42,158 @@ class JSONExporter:
         self.inline_embeddings = inline_embeddings
         self.sidecar_parquet = sidecar_parquet
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def export(self, db: Database, rubric_version_id: int, output_path: str) -> str:
+        rubric, project_uuid = self._load_header(db, rubric_version_id)
+        chunks_data, embedding_rows, embedding_dim, embedding_models = (
+            self._collect_chunks(db, rubric_version_id, project_uuid, max_chunks=None)
+        )
+
+        sidecar_info: dict | None = None
+        if self.sidecar_parquet and embedding_rows:
+            sidecar_path = self._sidecar_path(output_path)
+            wrote = self._write_parquet(
+                sidecar_path,
+                embedding_rows,
+                embedding_dim or 0,
+                sorted(embedding_models),
+                project_uuid,
+            )
+            if wrote:
+                sidecar_info = self._sidecar_manifest(
+                    Path(sidecar_path).name,
+                    len(embedding_rows),
+                    embedding_dim,
+                    sorted(embedding_models),
+                )
+
+        summary = db.get_labeling_summary(rubric_version_id)
+        manifest = self._manifest(
+            rubric, project_uuid, len(chunks_data), summary, sidecar_info
+        )
+
+        output = {
+            "manifest": manifest,
+            "rubric": self._rubric_payload(rubric),
+            "chunks": chunks_data,
+        }
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
+
+        logger.info("Exported %d chunks to %s", len(chunks_data), output_path)
+        if sidecar_info:
+            logger.info(
+                "Wrote embeddings sidecar: %s rows=%d dim=%s",
+                sidecar_info["path"],
+                sidecar_info["rows"],
+                sidecar_info["dim"],
+            )
+        return output_path
+
+    def build_preview(
+        self, db: Database, rubric_version_id: int, max_chunks: int = 1
+    ) -> dict:
+        """Build a preview dict — same shape as export(), capped to max_chunks.
+
+        No file is written and no parquet sidecar is materialized. The
+        manifest's sidecar block is populated with what *would* be written
+        so the user can see the schema/keys without paying the cost.
+        """
+        rubric, project_uuid = self._load_header(db, rubric_version_id)
+        chunks_data, embedding_rows, embedding_dim, embedding_models = (
+            self._collect_chunks(
+                db, rubric_version_id, project_uuid, max_chunks=max_chunks
+            )
+        )
+
+        # Best-effort row count over the whole corpus, even though we only
+        # serialized max_chunks of them — preview should report what export
+        # would produce.
+        full_summary = db.get_labeling_summary(rubric_version_id)
+        full_chunk_count = full_summary["total_labels"]
+        full_embedding_rows = self._count_embedding_rows(db, rubric_version_id)
+
+        sidecar_info: dict | None = None
+        if self.sidecar_parquet and full_embedding_rows > 0:
+            sidecar_info = self._sidecar_manifest(
+                f"{Path('preview').stem}_embeddings.parquet",
+                full_embedding_rows,
+                embedding_dim,
+                sorted(embedding_models),
+            )
+            sidecar_info["preview_only"] = (
+                "Schema preview — no file written. Click 'Export to File' "
+                "to materialize."
+            )
+
+        manifest = self._manifest(
+            rubric, project_uuid, full_chunk_count, full_summary, sidecar_info
+        )
+        manifest["preview"] = {
+            "rendered_chunks": len(chunks_data),
+            "total_chunks": full_chunk_count,
+        }
+
+        return {
+            "manifest": manifest,
+            "rubric": self._rubric_payload(rubric),
+            "chunks": chunks_data,
+        }
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _load_header(
+        db: Database, rubric_version_id: int
+    ) -> tuple[object, str]:
         rubric = db.get_rubric(rubric_version_id)
         if rubric is None:
             raise ValueError(f"Rubric version {rubric_version_id} not found")
+        project_uuid = db.get_or_create_project_uuid()
+        return rubric, project_uuid
 
-        all_labels = db.get_all_labels(rubric_version_id)
+    @staticmethod
+    def _chunk_uuid(project_uuid: str, chunk_id: int) -> str:
+        return str(uuid.uuid5(uuid.UUID(project_uuid), str(chunk_id)))
+
+    def _collect_chunks(
+        self,
+        db: Database,
+        rubric_version_id: int,
+        project_uuid: str,
+        max_chunks: int | None,
+    ) -> tuple[list[dict], list[dict], int | None, set[str]]:
         chunks_data: list[dict] = []
-        embedding_rows: list[dict] = []  # chunk_id, embedding, embedding_model
+        embedding_rows: list[dict] = []
         embedding_dim: int | None = None
-        embedding_model_seen: set[str] = set()
+        embedding_models: set[str] = set()
 
-        for label in all_labels:
+        rubric = db.get_rubric(rubric_version_id)
+        rubric_version = rubric.version if rubric is not None else None
+
+        for label in db.get_all_labels(rubric_version_id):
+            if max_chunks is not None and len(chunks_data) >= max_chunks:
+                break
             chunk = db.get_chunk(label.chunk_id)
             if chunk is None:
                 continue
-
             doc = db.get_document(chunk.document_id)
             reviews = db.get_reviews_for_label(label.id or 0)
+            cu = (
+                self._chunk_uuid(project_uuid, chunk.id)
+                if chunk.id is not None
+                else None
+            )
 
-            chunk_entry = {
+            chunk_entry: dict = {
                 "chunk_id": chunk.id,
+                "chunk_uuid": cu,
                 "text": chunk.text,
                 "source": {
                     "document": doc.filename if doc else "unknown",
@@ -70,7 +208,7 @@ class JSONExporter:
                 "manual_override": chunk.manual_override,
                 "embedding_model": chunk.embedding_model,
                 "label": {
-                    "rubric_version": rubric.version,
+                    "rubric_version": rubric_version,
                     "categories": label.predicted_categories,
                     "confidence": label.confidence_per_category,
                     "rationale": label.rationale,
@@ -88,6 +226,8 @@ class JSONExporter:
                 embedding_rows.append(
                     {
                         "chunk_id": chunk.id,
+                        "chunk_uuid": cu,
+                        "project_uuid": project_uuid,
                         "document_id": chunk.document_id or 0,
                         "document_filename": doc.filename if doc else "",
                         "embedding": chunk.embedding,
@@ -97,7 +237,7 @@ class JSONExporter:
                 if embedding_dim is None:
                     embedding_dim = len(chunk.embedding)
                 if chunk.embedding_model:
-                    embedding_model_seen.add(chunk.embedding_model)
+                    embedding_models.add(chunk.embedding_model)
 
             if reviews:
                 review = reviews[-1]
@@ -111,38 +251,31 @@ class JSONExporter:
 
             chunks_data.append(chunk_entry)
 
-        summary = db.get_labeling_summary(rubric_version_id)
+        return chunks_data, embedding_rows, embedding_dim, embedding_models
 
-        # Optional sidecar: write embeddings to Parquet keyed by chunk_id.
-        sidecar_info: dict | None = None
-        if self.sidecar_parquet and embedding_rows:
-            sidecar_path = self._sidecar_path(output_path)
-            wrote = self._write_parquet(
-                sidecar_path,
-                embedding_rows,
-                embedding_dim or 0,
-                sorted(embedding_model_seen),
-            )
-            if wrote:
-                sidecar_info = {
-                    "path": Path(sidecar_path).name,
-                    "rows": len(embedding_rows),
-                    "dim": embedding_dim,
-                    "models": sorted(embedding_model_seen),
-                    "join_keys": ["chunk_id", "document_id"],
-                    "join_key_note": (
-                        "chunk_id is unique within this export (AUTOINCREMENT "
-                        "primary key). When merging exports across projects, "
-                        "join on (document_filename, chunk_id) or prefix "
-                        "chunk_id with a project namespace."
-                    ),
-                    "format": "parquet",
-                }
+    @staticmethod
+    def _count_embedding_rows(db: Database, rubric_version_id: int) -> int:
+        """Cheap count of how many labeled chunks have an embedding."""
+        n = 0
+        for label in db.get_all_labels(rubric_version_id):
+            chunk = db.get_chunk(label.chunk_id)
+            if chunk is not None and chunk.embedding is not None:
+                n += 1
+        return n
 
-        manifest: dict = {
+    def _manifest(
+        self,
+        rubric,
+        project_uuid: str,
+        total_chunks: int,
+        summary: dict,
+        sidecar_info: dict | None,
+    ) -> dict:
+        return {
+            "project_uuid": project_uuid,
             "rubric_version": rubric.version,
             "rubric_name": rubric.name,
-            "total_chunks": len(chunks_data),
+            "total_chunks": total_chunks,
             "labeled_chunks": summary["total_labels"],
             "reviewed_chunks": summary["reviewed"],
             "export_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -151,39 +284,46 @@ class JSONExporter:
                 "inline": self.inline_embeddings,
                 "sidecar": sidecar_info,
             },
-        }
-
-        output = {
-            "manifest": manifest,
-            "rubric": {
-                "name": rubric.name,
-                "version": rubric.version,
-                "categories": [
-                    {
-                        "name": c.name,
-                        "definition": c.definition,
-                        "exemplars": c.exemplars,
-                        "boundary_cases": c.boundary_cases,
-                        "confidence_threshold": c.confidence_threshold,
-                    }
-                    for c in rubric.categories
-                ],
+            "join_keys": {
+                "primary": "chunk_uuid",
+                "fallback": ["project_uuid", "chunk_id"],
+                "note": (
+                    "chunk_uuid is uuid5(project_uuid, chunk_id) — globally "
+                    "unique, stable across exports of this project. chunk_id "
+                    "alone is unique only within a single project."
+                ),
             },
-            "chunks": chunks_data,
         }
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(output, f, indent=2, ensure_ascii=False)
+    @staticmethod
+    def _rubric_payload(rubric) -> dict:
+        return {
+            "name": rubric.name,
+            "version": rubric.version,
+            "categories": [
+                {
+                    "name": c.name,
+                    "definition": c.definition,
+                    "exemplars": c.exemplars,
+                    "boundary_cases": c.boundary_cases,
+                    "confidence_threshold": c.confidence_threshold,
+                }
+                for c in rubric.categories
+            ],
+        }
 
-        logger.info("Exported %d chunks to %s", len(chunks_data), output_path)
-        if sidecar_info:
-            logger.info(
-                "Wrote embeddings sidecar: %s rows=%d dim=%s",
-                sidecar_info["path"],
-                sidecar_info["rows"],
-                sidecar_info["dim"],
-            )
-        return output_path
+    @staticmethod
+    def _sidecar_manifest(
+        path_basename: str, rows: int, dim: int | None, models: list[str]
+    ) -> dict:
+        return {
+            "path": path_basename,
+            "rows": rows,
+            "dim": dim,
+            "models": models,
+            "join_keys": ["chunk_uuid", "project_uuid", "chunk_id"],
+            "format": "parquet",
+        }
 
     @staticmethod
     def _sidecar_path(json_path: str) -> str:
@@ -194,7 +334,11 @@ class JSONExporter:
 
     @staticmethod
     def _write_parquet(
-        path: str, rows: list[dict], dim: int, models: list[str]
+        path: str,
+        rows: list[dict],
+        dim: int,
+        models: list[str],
+        project_uuid: str,
     ) -> bool:
         """Write embeddings to Parquet; silently skip if pyarrow isn't installed.
 
@@ -220,6 +364,8 @@ class JSONExporter:
         try:
             schema = pa.schema(
                 [
+                    pa.field("chunk_uuid", pa.string()),
+                    pa.field("project_uuid", pa.string()),
                     pa.field("chunk_id", pa.int64()),
                     pa.field("document_id", pa.int64()),
                     pa.field("document_filename", pa.string()),
@@ -227,12 +373,17 @@ class JSONExporter:
                     pa.field("embedding_model", pa.string()),
                 ]
             )
-            # Coerce embedding rows to float32 lists.
             embedding_col = [
                 [float(x) for x in r["embedding"]] for r in rows
             ]
             table = pa.table(
                 {
+                    "chunk_uuid": pa.array(
+                        [str(r["chunk_uuid"]) for r in rows], type=pa.string()
+                    ),
+                    "project_uuid": pa.array(
+                        [str(r["project_uuid"]) for r in rows], type=pa.string()
+                    ),
                     "chunk_id": pa.array(
                         [int(r["chunk_id"]) for r in rows], type=pa.int64()
                     ),
@@ -253,11 +404,10 @@ class JSONExporter:
                 },
                 schema=schema,
             )
-            # Stamp dim + model list as schema-level metadata so consumers
-            # don't have to peek at row 0 to find them.
             meta = {
                 b"embedding_dim": str(dim).encode(),
                 b"embedding_models": ",".join(models).encode(),
+                b"project_uuid": project_uuid.encode(),
             }
             table = table.replace_schema_metadata(meta)
             pq.write_table(
@@ -265,7 +415,11 @@ class JSONExporter:
                 path,
                 compression="snappy",
                 version="2.4",
-                use_dictionary=["document_filename", "embedding_model"],
+                use_dictionary=[
+                    "project_uuid",
+                    "document_filename",
+                    "embedding_model",
+                ],
             )
             return True
         except Exception as e:

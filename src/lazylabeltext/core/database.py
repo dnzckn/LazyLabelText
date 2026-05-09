@@ -185,6 +185,11 @@ class Database:
                 payload_json TEXT DEFAULT '{}',
                 related_chunk_ids_json TEXT DEFAULT '[]'
             );
+
+            CREATE TABLE IF NOT EXISTS project_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
         """)
         # Defensive migration for existing project.db files predating new columns.
         for stmt in [
@@ -974,6 +979,38 @@ class Database:
             }
             for r in rows
         ]
+
+    # --- Project metadata ---
+
+    def get_project_meta(self, key: str) -> str | None:
+        row = self.conn.execute(
+            "SELECT value FROM project_meta WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row else None
+
+    def set_project_meta(self, key: str, value: str) -> None:
+        self.conn.execute(
+            "INSERT INTO project_meta (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+        self.conn.commit()
+
+    def get_or_create_project_uuid(self) -> str:
+        """Return this project's UUID, minting one on first call.
+
+        Stable across exports for the lifetime of project.db, so cross-project
+        merges of exported corpora can use (project_uuid, chunk_id) as a
+        globally unique join key without renaming chunk ids.
+        """
+        existing = self.get_project_meta("project_uuid")
+        if existing:
+            return existing
+        import uuid
+
+        new = str(uuid.uuid4())
+        self.set_project_meta("project_uuid", new)
+        return new
 
     # --- Lifecycle ---
 

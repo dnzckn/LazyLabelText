@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QLabel,
+    QProgressBar,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from lazylabeltext.core.exporters import ExportFormat, export_corpus
+from lazylabeltext.core.exporters import ExportFormat
+from lazylabeltext.core.exporters.json_exporter import JSONExporter
 from lazylabeltext.ui.modes.base_mode import BaseMode
+from lazylabeltext.ui.workers.export_worker import ExportWorker
 
 if TYPE_CHECKING:
     from lazylabeltext.core.app_context import AppContext
@@ -27,6 +32,7 @@ class ExportModeWidget(BaseMode):
 
     def __init__(self, context: AppContext, parent: QWidget | None = None) -> None:
         super().__init__(context, parent)
+        self._worker: ExportWorker | None = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -45,29 +51,45 @@ class ExportModeWidget(BaseMode):
         layout.addWidget(self.format_combo)
 
         # Preview
-        layout.addWidget(QLabel("Preview:"))
+        layout.addWidget(QLabel("Preview (manifest + first chunk):"))
         self.preview = QTextEdit()
         self.preview.setReadOnly(True)
         self.preview.setMaximumHeight(300)
-        self.preview.setPlaceholderText("Click 'Preview' to see export output.")
+        self.preview.setPlaceholderText(
+            "Click 'Preview' to render the manifest and first labeled chunk."
+        )
         layout.addWidget(self.preview)
 
         # Buttons
-        preview_btn = QPushButton("Preview")
-        preview_btn.clicked.connect(self._show_preview)
-        layout.addWidget(preview_btn)
+        self.preview_btn = QPushButton("Preview")
+        self.preview_btn.clicked.connect(self._show_preview)
+        layout.addWidget(self.preview_btn)
 
         self.export_btn = QPushButton("Export to File")
         self.export_btn.setObjectName("accentButton")
         self.export_btn.clicked.connect(self._export)
         layout.addWidget(self.export_btn)
 
+        # Busy indicator. Indeterminate: the current exporter does the work
+        # in one synchronous pass, so we have no per-chunk progress to wire.
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)
+        self.progress.setTextVisible(False)
+        self.progress.setVisible(False)
+        self.progress.setFixedHeight(4)
+        layout.addWidget(self.progress)
+
         # Status
         self.status_label = QLabel()
         self.status_label.setStyleSheet("color: #888;")
+        self.status_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(self.status_label)
 
         layout.addStretch()
+
+    # ------------------------------------------------------------------
+    # Preview — cheap, in-process, no parquet, no temp file.
+    # ------------------------------------------------------------------
 
     def _show_preview(self) -> None:
         if self.ctx.rubric_manager is None or self.ctx.database is None:
@@ -78,24 +100,37 @@ class ExportModeWidget(BaseMode):
             self.preview.setPlainText("No rubric found.")
             return
 
-        import tempfile
-
-        fmt = self.format_combo.currentData()
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        ) as f:
-            tmp_path = f.name
-
         try:
-            export_corpus(fmt, self.ctx.database, rubric.id, tmp_path)
-            with open(tmp_path, encoding="utf-8") as f:
-                content = f.read()
-            # Show first 5000 chars
-            if len(content) > 5000:
-                content = content[:5000] + "\n\n... (truncated)"
-            self.preview.setPlainText(content)
+            exporter = JSONExporter()
+            data = exporter.build_preview(
+                self.ctx.database, rubric.id, max_chunks=1
+            )
         except Exception as e:
             self.preview.setPlainText(f"Preview error: {e}")
+            return
+
+        if not data["chunks"]:
+            self.preview.setPlainText(
+                json.dumps(
+                    {
+                        "manifest": data["manifest"],
+                        "rubric": data["rubric"],
+                        "chunks": [],
+                        "note": "No labeled chunks yet — label some first.",
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
+            return
+
+        self.preview.setPlainText(
+            json.dumps(data, indent=2, ensure_ascii=False)
+        )
+
+    # ------------------------------------------------------------------
+    # Export — async via QThread; UI stays responsive with a busy bar.
+    # ------------------------------------------------------------------
 
     def _export(self) -> None:
         if self.ctx.rubric_manager is None or self.ctx.database is None:
@@ -131,16 +166,37 @@ class ExportModeWidget(BaseMode):
         if not path:
             return
 
-        try:
-            export_corpus(fmt, self.ctx.database, rubric.id, path)
-            self.status_label.setText(f"Exported to {path}")
-            self.status_label.setStyleSheet("color: #51cf66;")
+        self._set_busy(True, f"Exporting to {Path(path).name}…")
+        self._worker = ExportWorker(
+            self.ctx.database, fmt, rubric.id, path, parent=self
+        )
+        self._worker.finished.connect(lambda p, f=fmt: self._on_export_done(p, f))
+        self._worker.error.connect(self._on_export_error)
+        self._worker.start()
 
-            if self.ctx.audit_manager:
-                self.ctx.audit_manager.log_event(
-                    "export_completed",
-                    payload={"format": fmt.value, "path": path},
-                )
-        except Exception as e:
-            self.status_label.setText(f"Export failed: {e}")
-            self.status_label.setStyleSheet("color: #ff6b6b;")
+    def _on_export_done(self, path: str, fmt: ExportFormat) -> None:
+        self._set_busy(False)
+        sidecar = Path(path).with_name(f"{Path(path).stem}_embeddings.parquet")
+        suffix = f" (+ {sidecar.name})" if sidecar.exists() else ""
+        self.status_label.setText(f"Exported to {path}{suffix}")
+        self.status_label.setStyleSheet("color: #51cf66;")
+        if self.ctx.audit_manager:
+            self.ctx.audit_manager.log_event(
+                "export_completed",
+                payload={"format": fmt.value, "path": path},
+            )
+        self._worker = None
+
+    def _on_export_error(self, msg: str) -> None:
+        self._set_busy(False)
+        self.status_label.setText(f"Export failed: {msg}")
+        self.status_label.setStyleSheet("color: #ff6b6b;")
+        self._worker = None
+
+    def _set_busy(self, busy: bool, message: str = "") -> None:
+        self.progress.setVisible(busy)
+        self.export_btn.setEnabled(not busy)
+        self.preview_btn.setEnabled(not busy)
+        if busy:
+            self.status_label.setText(message)
+            self.status_label.setStyleSheet("color: #888;")
