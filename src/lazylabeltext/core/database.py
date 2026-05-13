@@ -912,6 +912,22 @@ class Database:
 
     # --- Summary queries ---
 
+    def count_chunks_with_embeddings(self, rubric_version_id: int) -> int:
+        """Count labeled chunks that also have a persisted embedding.
+
+        Pure SQL — avoids instantiating Chunk/Label dataclasses on the caller
+        thread, which matters when this is called from the UI to populate
+        export preview metadata over a large corpus.
+        """
+        row = self.conn.execute(
+            """SELECT COUNT(*) FROM labels l
+               JOIN chunks c ON l.chunk_id = c.id
+               WHERE l.rubric_version_id = ?
+                 AND c.embedding_json IS NOT NULL""",
+            (rubric_version_id,),
+        ).fetchone()
+        return int(row[0]) if row else 0
+
     def get_labeling_summary(self, rubric_version_id: int) -> dict:
         """Get summary statistics for labeling results."""
         total = self.conn.execute(

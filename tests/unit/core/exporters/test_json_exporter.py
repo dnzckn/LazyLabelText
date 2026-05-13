@@ -143,6 +143,44 @@ class TestParquetSidecar:
         assert b"project_uuid" in meta
 
 
+class TestCountChunksWithEmbeddings:
+    def test_counts_only_labeled_chunks_with_embeddings(self, sample_database):
+        _, rid, _ = _seed_corpus(sample_database, with_embedding=True)
+        # A second labeled chunk without an embedding shouldn't bump the count.
+        doc = sample_database.get_all_documents()[0]
+        run_id = sample_database.insert_chunking_run(
+            ChunkingRun(document_id=doc.id, strategy="structural", n_chunks=1)
+        )
+        cid = sample_database.insert_chunk(
+            Chunk(
+                document_id=doc.id,
+                chunking_run_id=run_id,
+                text="no embedding",
+                char_start=0,
+                char_end=12,
+                token_count=2,
+            )
+        )
+        sample_database.insert_label(
+            Label(
+                chunk_id=cid,
+                rubric_version_id=rid,
+                predicted_categories=["cat"],
+                confidence_per_category={"cat": 0.5},
+                rationale="",
+                composite_confidence=0.5,
+                llm_model="m",
+            )
+        )
+        assert sample_database.count_chunks_with_embeddings(rid) == 1
+
+    def test_zero_when_no_labels(self, sample_database):
+        rid = sample_database.insert_rubric(
+            Rubric(name="R", version=1, categories=[Category(name="c", definition="d")])
+        )
+        assert sample_database.count_chunks_with_embeddings(rid) == 0
+
+
 class TestPreview:
     def test_preview_does_not_write_parquet(self, sample_database, tmp_path):
         _, rid, _ = _seed_corpus(sample_database, with_embedding=True)

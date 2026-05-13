@@ -105,28 +105,21 @@ class ExportModeWidget(BaseMode):
             data = exporter.build_preview(
                 self.ctx.database, rubric.id, max_chunks=1
             )
+            if not data["chunks"]:
+                payload = {
+                    "manifest": data["manifest"],
+                    "rubric": data["rubric"],
+                    "chunks": [],
+                    "note": "No labeled chunks yet — label some first.",
+                }
+            else:
+                payload = data
+            text = json.dumps(payload, indent=2, ensure_ascii=False)
         except Exception as e:
             self.preview.setPlainText(f"Preview error: {e}")
             return
 
-        if not data["chunks"]:
-            self.preview.setPlainText(
-                json.dumps(
-                    {
-                        "manifest": data["manifest"],
-                        "rubric": data["rubric"],
-                        "chunks": [],
-                        "note": "No labeled chunks yet — label some first.",
-                    },
-                    indent=2,
-                    ensure_ascii=False,
-                )
-            )
-            return
-
-        self.preview.setPlainText(
-            json.dumps(data, indent=2, ensure_ascii=False)
-        )
+        self.preview.setPlainText(text)
 
     # ------------------------------------------------------------------
     # Export — async via QThread; UI stays responsive with a busy bar.

@@ -115,7 +115,7 @@ class JSONExporter:
         # would produce.
         full_summary = db.get_labeling_summary(rubric_version_id)
         full_chunk_count = full_summary["total_labels"]
-        full_embedding_rows = self._count_embedding_rows(db, rubric_version_id)
+        full_embedding_rows = db.count_chunks_with_embeddings(rubric_version_id)
 
         sidecar_info: dict | None = None
         if self.sidecar_parquet and full_embedding_rows > 0:
@@ -252,16 +252,6 @@ class JSONExporter:
             chunks_data.append(chunk_entry)
 
         return chunks_data, embedding_rows, embedding_dim, embedding_models
-
-    @staticmethod
-    def _count_embedding_rows(db: Database, rubric_version_id: int) -> int:
-        """Cheap count of how many labeled chunks have an embedding."""
-        n = 0
-        for label in db.get_all_labels(rubric_version_id):
-            chunk = db.get_chunk(label.chunk_id)
-            if chunk is not None and chunk.embedding is not None:
-                n += 1
-        return n
 
     def _manifest(
         self,
