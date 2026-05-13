@@ -56,11 +56,11 @@ class Paths:
 
     @property
     def models_dir(self) -> Path:
-        """Local model cache for offline-friendly embeddings.
+        """Local embedding-model cache directory.
 
-        Mirrors LazyLabel's pattern: each model is downloaded once and saved
-        here, then loaded from disk on subsequent runs. Letting users copy
-        this folder onto an air-gapped machine is the manual-install path.
+        Each model is downloaded once and saved here; subsequent runs load
+        it from disk without a network call. Users can also drop a
+        pre-downloaded model folder in directly.
         """
         d = self.app_dir / "models"
         # Frozen / read-only install — caller will handle the missing dir.

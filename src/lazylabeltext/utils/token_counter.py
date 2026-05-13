@@ -50,11 +50,10 @@ def _get_encoder():
     try:
         _ENCODER = tiktoken.get_encoding("cl100k_base")
     except Exception as e:
-        # Most common cause: offline first-run, encoding file not cached.
+        # Most common cause: encoding file not on disk and the fetch failed.
         logger.warning(
             "tiktoken couldn't load 'cl100k_base' (%s). Falling back to a "
-            "word-length token estimate. Pre-cache the encoding on a machine "
-            "with internet: "
+            "word-length token estimate. To pre-cache the encoding: "
             "python -c \"import tiktoken; tiktoken.get_encoding('cl100k_base')\"",
             e,
         )

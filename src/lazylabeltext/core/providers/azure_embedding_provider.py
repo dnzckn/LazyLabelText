@@ -6,7 +6,7 @@ that's a heavy and irrelevant dep for an HTTP embedding call. Going
 through openai.AzureOpenAI keeps the embedding path zero-torch.
 
 Pairs naturally with AzureOpenAIProvider — same env-var auth, same
-endpoint, same SSL / proxy story. Default deployment is `text-embedding-ada-002`.
+endpoint, same TLS / HTTP options. Default deployment is `text-embedding-ada-002`.
 """
 
 from __future__ import annotations

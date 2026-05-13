@@ -69,7 +69,7 @@ class ProviderSettingsDialog(QDialog):
         self.use_env_check.setToolTip(
             "When checked, the provider reads its API key (and Azure endpoint) "
             "from environment variables — secrets never touch the in-app field "
-            "or settings.json. Recommended for shared / corporate machines."
+            "or settings.json."
         )
         self.use_env_check.toggled.connect(self._on_use_env_toggled)
         llm_layout.addRow("", self.use_env_check)
@@ -152,7 +152,7 @@ class ProviderSettingsDialog(QDialog):
 
         self.azure_verify_check = QCheckBox("Verify SSL")
         self.azure_verify_check.setToolTip(
-            "Disable for corporate proxies / self-signed CAs."
+            "Uncheck to skip server-certificate validation on outbound HTTPS."
         )
         self.azure_http2_check = QCheckBox("HTTP/2")
         azure_http_row = QHBoxLayout()

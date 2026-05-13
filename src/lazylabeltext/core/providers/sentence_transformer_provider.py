@@ -1,20 +1,16 @@
 """Sentence-transformers embedding provider with local model cache.
 
-Mirrors the LazyLabel pattern: each model is loaded from a local directory
-under `Paths().models_dir` if present; otherwise it's downloaded once via
-the standard SentenceTransformer constructor and then saved to that
-directory for future offline use.
+Loads each model from a local directory under `Paths().models_dir` if
+present; otherwise downloads once via the standard SentenceTransformer
+constructor and saves to that directory so subsequent runs skip the
+network call.
 
-Manual install path (no internet on target machine):
+Pre-populating the cache without running the app:
 
-    On a machine with internet:
-      pip install sentence-transformers
-      python -c "from sentence_transformers import SentenceTransformer; \
-                  SentenceTransformer('all-MiniLM-L6-v2').save( \
-                  '<lazylabeltext>/models/all-MiniLM-L6-v2')"
-
-    Then copy the resulting folder to the offline machine's
-    `<lazylabeltext-install>/models/` directory.
+    pip install sentence-transformers
+    python -c "from sentence_transformers import SentenceTransformer; \
+                SentenceTransformer('all-MiniLM-L6-v2').save( \
+                '<lazylabeltext>/models/all-MiniLM-L6-v2')"
 """
 
 from __future__ import annotations
@@ -72,7 +68,7 @@ class SentenceTransformerProvider:
 
             local_path = self._local_path()
 
-            # 1. Local cache hit → load offline.
+            # 1. Local cache hit → load from disk, no network call.
             if local_path.exists() and any(local_path.iterdir()):
                 try:
                     logger.info(

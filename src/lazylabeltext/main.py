@@ -81,9 +81,9 @@ def main() -> None:
     except Exception:
         pass
 
-    # Proactively populate the tiktoken cache so first-time online users are
-    # set up for offline runs later. Quick when cached / online, silent when
-    # offline (count_tokens will fall back to a heuristic).
+    # Populate the tiktoken cache so subsequent runs don't have to fetch the
+    # encoding. Fast when the file is already on disk; if the fetch fails,
+    # count_tokens falls back to a heuristic.
     try:
         from lazylabeltext.utils.token_counter import (
             bootstrap_tiktoken_cache,
