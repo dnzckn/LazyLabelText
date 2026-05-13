@@ -193,8 +193,8 @@ class MainWindow(QMainWindow):
 
         toolbar_layout.addStretch()
 
-        # Settings gear button
-        settings_btn = QPushButton("Settings")
+        # API Settings button
+        settings_btn = QPushButton("API Settings")
         settings_btn.clicked.connect(self._open_settings)
         toolbar_layout.addWidget(settings_btn)
 
